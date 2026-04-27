@@ -1,0 +1,103 @@
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useThemeStore } from '@/store/themeStore';
+import { useAuthStore } from '@/store/authStore';
+import { AppLayout } from '@/components/layout/AppLayout';
+
+// Auth pages
+import LoginPage from '@/pages/auth/LoginPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
+import OTPVerificationPage from '@/pages/auth/OTPVerificationPage';
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
+
+// App pages
+import Dashboard from '@/pages/Dashboard';
+import Timesheet from '@/pages/Timesheet';
+import Reports from '@/pages/Reports';
+import Team from '@/pages/Team';
+import Approvals from '@/pages/Approvals';
+import AdminPanel from '@/pages/AdminPanel';
+import Profile from '@/pages/Profile';
+
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuthStore();
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function ThemeInitializer() {
+  const { theme } = useThemeStore();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  return null;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ThemeInitializer />
+      <Routes>
+        {/* Public Auth Routes */}
+        <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+        <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+        <Route path="/verify-otp" element={<PublicRoute><OTPVerificationPage /></PublicRoute>} />
+        <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+
+        {/* Protected App Routes */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/timesheet" element={<Timesheet />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/team" element={<Team />} />
+          <Route
+            path="/approvals"
+            element={
+              <ProtectedRoute allowedRoles={['manager', 'admin']}>
+                <Approvals />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
