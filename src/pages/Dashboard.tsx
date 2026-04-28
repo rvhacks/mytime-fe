@@ -59,16 +59,8 @@ const BILLABLE_PIE = [
   { name: 'Non-Billable', value: BILLABLE_SUMMARY.totalNonBillable, color: '#f59e0b' },
 ];
 
-function getGreeting(): { text: string; emoji: string } {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return { text: 'Good morning', emoji: '👋' };
-  if (hour >= 12 && hour < 17) return { text: 'Good afternoon', emoji: '☀️' };
-  return { text: 'Good evening', emoji: '🌙' };
-}
-
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const greeting = getGreeting();
   const navigate = useNavigate();
 
   const summaryCards = [
@@ -124,9 +116,7 @@ export default function Dashboard() {
       {/* Header */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            {greeting.text}, {user?.name?.split(' ')[0]} {greeting.emoji}
-          </h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
           <p className="text-[var(--text-secondary)] mt-1">
             Here's your weekly overview for Apr 20 – Apr 26, 2026
           </p>

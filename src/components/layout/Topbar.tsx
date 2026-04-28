@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search,
   Bell,
   Sun,
   Moon,
@@ -18,14 +17,20 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
+function getGreeting(): { text: string; emoji: string } {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return { text: 'Good morning', emoji: '👋' };
+  if (hour >= 12 && hour < 17) return { text: 'Good afternoon', emoji: '☀️' };
+  return { text: 'Good evening', emoji: '🌙' };
+}
+
 export function Topbar() {
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout } = useAuthStore();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore();
   const navigate = useNavigate();
+  const greeting = getGreeting();
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -57,21 +62,11 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-secondary)] flex items-center justify-between px-6">
-      {/* Left: Search */}
-      <div className="flex items-center gap-4 flex-1">
-        <div className="relative max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-          <input
-            type="text"
-            placeholder="Search anything..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-9 pl-9 pr-4 rounded-lg bg-[var(--bg-tertiary)] border-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
-          />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-secondary)] px-1.5 py-0.5 rounded border border-[var(--border-primary)]">
-            ⌘K
-          </kbd>
-        </div>
+      {/* Left: Greeting */}
+      <div className="flex items-center gap-2">
+        <h2 className="text-base font-semibold text-[var(--text-primary)]">
+          {greeting.text}, {user?.name?.split(' ')[0]} {greeting.emoji}
+        </h2>
       </div>
 
       {/* Right: Actions */}
