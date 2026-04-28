@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -11,6 +11,10 @@ import {
   Circle,
   Loader2,
   CalendarDays,
+  Mail,
+  Building2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +39,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { projects } = useAdminStore();
   const { currentTimesheet, pastTimesheets } = useTimesheetStore();
+  const [showAllMembers, setShowAllMembers] = useState(false);
 
   const project = projects.find((p) => p.id === projectId);
 
@@ -279,42 +284,115 @@ export default function ProjectDetail() {
         {/* Team Members */}
         <motion.div variants={itemVariants}>
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <Users className="w-4 h-4 text-[var(--text-tertiary)]" />
                 Team Members
+                <span className="text-xs font-normal text-[var(--text-tertiary)] ml-1">({teamMembers.length})</span>
               </CardTitle>
+              {teamMembers.length > 0 && (
+                <button
+                  onClick={() => setShowAllMembers(!showAllMembers)}
+                  className="flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-600 transition-colors"
+                >
+                  {showAllMembers ? 'Collapse' : 'View All'}
+                  {showAllMembers ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
-                {teamMembers.length > 0 ? (
-                  teamMembers.map((member, i) => (
-                    <motion.div
-                      key={member.id}
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.08 }}
-                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors"
-                    >
-                      <Avatar name={member.name} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                          {member.name}
-                        </p>
-                        <p className="text-xs text-[var(--text-tertiary)] truncate">
-                          {member.designation}
-                        </p>
-                      </div>
-                      <StatusBadge status={member.submissionStatus} />
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-6">
-                    <Users className="w-8 h-8 mx-auto text-[var(--text-tertiary)] mb-2" />
-                    <p className="text-sm text-[var(--text-tertiary)]">No team members</p>
+              {teamMembers.length > 0 ? (
+                showAllMembers ? (
+                  /* Expanded view with full member details */
+                  <div className="space-y-3">
+                    {teamMembers.map((member, i) => (
+                      <motion.div
+                        key={member.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        className="p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] space-y-3"
+                      >
+                        {/* Header */}
+                        <div className="flex items-center gap-3">
+                          <Avatar name={member.name} size="md" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                              {member.name}
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                              {member.designation}
+                            </p>
+                          </div>
+                          <StatusBadge status={member.submissionStatus} />
+                        </div>
+
+                        {/* Details */}
+                        <div className="grid grid-cols-1 gap-2 pt-2 border-t border-[var(--border-secondary)]">
+                          <div className="flex items-center gap-2 text-xs">
+                            <Mail className="w-3.5 h-3.5 text-[var(--text-tertiary)] flex-shrink-0" />
+                            <span className="text-[var(--text-secondary)] truncate">{member.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <Building2 className="w-3.5 h-3.5 text-[var(--text-tertiary)] flex-shrink-0" />
+                            <span className="text-[var(--text-secondary)]">{member.department}</span>
+                          </div>
+                        </div>
+
+                        {/* Hours Progress */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-[var(--text-tertiary)]">This Week</span>
+                            <span className="text-xs font-semibold text-[var(--text-primary)]">
+                              {member.hoursThisWeek}h / 40h
+                            </span>
+                          </div>
+                          <div className="w-full bg-[var(--card-bg)] rounded-full h-1.5">
+                            <div
+                              className="h-1.5 rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.min(100, (member.hoursThisWeek / 40) * 100)}%`,
+                                backgroundColor:
+                                  member.hoursThisWeek >= 40 ? '#10b981' : member.hoursThisWeek >= 30 ? '#f59e0b' : '#ef4444',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                )}
-              </div>
+                ) : (
+                  /* Compact view */
+                  <div className="space-y-1">
+                    {teamMembers.map((member, i) => (
+                      <motion.div
+                        key={member.id}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.08 }}
+                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+                        onClick={() => setShowAllMembers(true)}
+                      >
+                        <Avatar name={member.name} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                            {member.name}
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)] truncate">
+                            {member.designation}
+                          </p>
+                        </div>
+                        <StatusBadge status={member.submissionStatus} />
+                      </motion.div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="text-center py-6">
+                  <Users className="w-8 h-8 mx-auto text-[var(--text-tertiary)] mb-2" />
+                  <p className="text-sm text-[var(--text-tertiary)]">No team members</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
