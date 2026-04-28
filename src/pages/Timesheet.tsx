@@ -1,9 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Trash2,
-  Save,
   Send,
   Lock,
   AlertCircle,
@@ -128,11 +127,20 @@ export default function Timesheet() {
 
   const nonBillableHours = totalHours - billableHours;
 
-  // Handlers
-  const handleSaveDraft = async () => {
-    await saveDraft();
-    toast.success('Draft saved successfully');
-  };
+  // Auto-save draft on any change (debounced)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (!isCurrentWeek || isLocked) return;
+    const timer = setTimeout(async () => {
+      await saveDraft();
+      toast.success('Draft auto-saved', { id: 'auto-save', duration: 1500, icon: '💾' });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [currentTimesheet.rows, isCurrentWeek, isLocked]);
 
   const handleSubmit = async () => {
     if (currentTimesheet.rows.length === 0) {
@@ -200,18 +208,12 @@ export default function Timesheet() {
             </button>
           </div>
 
-          {/* Save / Submit — only on current week and not locked */}
+          {/* Submit — only on current week and not locked */}
           {isCurrentWeek && !isLocked && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleSaveDraft} isLoading={isSaving}>
-                <Save className="w-4 h-4" />
-                Save Draft
-              </Button>
-              <Button size="sm" onClick={handleSubmit} isLoading={isSaving}>
-                <Send className="w-4 h-4" />
-                Submit
-              </Button>
-            </>
+            <Button size="sm" onClick={handleSubmit} isLoading={isSaving}>
+              <Send className="w-4 h-4" />
+              Submit
+            </Button>
           )}
         </div>
       </div>
