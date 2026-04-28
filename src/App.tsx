@@ -15,6 +15,7 @@ import Dashboard from '@/pages/Dashboard';
 import Timesheet from '@/pages/Timesheet';
 import Reports from '@/pages/Reports';
 import MyProjects from '@/pages/MyProjects';
+import ProjectDetail from '@/pages/ProjectDetail';
 import Approvals from '@/pages/Approvals';
 import AdminPanel from '@/pages/AdminPanel';
 import Profile from '@/pages/Profile';
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/timesheet" element={<Timesheet />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/projects" element={<MyProjects />} />
+          <Route path="/projects/:projectId" element={<ProjectDetail />} />
           <Route
             path="/approvals"
             element={

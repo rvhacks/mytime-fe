@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, FolderKanban, Users, Target, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { EmptyState } from '@/components/shared/States';
 export default function MyProjects() {
   const { user } = useAuthStore();
   const { projects } = useAdminStore();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -132,7 +134,7 @@ export default function MyProjects() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden">
+                <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
                   {/* Color bar */}
                   <div className="h-1" style={{ backgroundColor: project.color }} />
                   <CardContent className="p-5">
