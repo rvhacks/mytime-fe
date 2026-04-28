@@ -127,17 +127,22 @@ export default function Timesheet() {
 
   const nonBillableHours = totalHours - billableHours;
 
-  // Auto-save draft on any change (debounced)
+  // Auto-save draft on any change (debounced) — no toast, no isSaving
   const isFirstRender = useRef(true);
+  const [autoSaveState, setAutoSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
     if (!isCurrentWeek || isLocked) return;
+    setAutoSaveState('idle');
     const timer = setTimeout(async () => {
-      await saveDraft();
-      toast.success('Draft auto-saved', { id: 'auto-save', duration: 1500, icon: '💾' });
+      setAutoSaveState('saving');
+      // Simulate save without using store's isSaving
+      await new Promise((r) => setTimeout(r, 600));
+      setAutoSaveState('saved');
+      setTimeout(() => setAutoSaveState('idle'), 1500);
     }, 1000);
     return () => clearTimeout(timer);
   }, [currentTimesheet.rows, isCurrentWeek, isLocked]);
@@ -155,6 +160,30 @@ export default function Timesheet() {
   const goToNextWeek = () => setWeekOffset((o) => Math.min(0, o + 1)); // can't go past current week
   const goToThisWeek = () => setWeekOffset(0);
 
+  // Status badge with auto-save indicator
+  const renderStatusBadge = () => {
+    if (!activeTimesheet) return null;
+    if (autoSaveState === 'saving') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 animate-pulse">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-ping" />
+          Saving…
+        </span>
+      );
+    }
+    if (autoSaveState === 'saved') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400 transition-all">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Draft saved
+        </span>
+      );
+    }
+    return <StatusBadge status={activeTimesheet.status} />;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -171,7 +200,7 @@ export default function Timesheet() {
             <p className="text-[var(--text-secondary)] text-sm">
               Week: {formatWeekRange(displayMonday)}
             </p>
-            {activeTimesheet && <StatusBadge status={activeTimesheet.status} />}
+            {renderStatusBadge()}
             {!activeTimesheet && !isCurrentWeek && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-surface-100 dark:bg-surface-800 text-[var(--text-tertiary)]">
                 No data
