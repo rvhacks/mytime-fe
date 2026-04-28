@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -8,6 +8,7 @@ import {
   Building2,
   Shield,
   FolderKanban,
+  Search,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,11 +32,24 @@ export default function ProjectTeam() {
   const { projects } = useAdminStore();
 
   const project = projects.find((p) => p.id === projectId);
+  const [search, setSearch] = useState('');
 
   const teamMembers = useMemo(() => {
     if (!project) return [];
     return TEAM_MEMBERS.filter((m) => project.assignedEmployees.includes(m.id));
   }, [project]);
+
+  const filteredMembers = useMemo(() => {
+    if (!search.trim()) return teamMembers;
+    const q = search.toLowerCase();
+    return teamMembers.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.designation.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.department.toLowerCase().includes(q)
+    );
+  }, [teamMembers, search]);
 
   if (!project) {
     return (
@@ -82,9 +96,34 @@ export default function ProjectTeam() {
         </div>
       </motion.div>
 
+      {/* Search */}
+      <motion.div variants={itemVariants} className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+        <input
+          type="text"
+          placeholder="Search by name, designation, email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
+        />
+      </motion.div>
+
       {/* Team Grid */}
+      {filteredMembers.length === 0 ? (
+        <div className="text-center py-16">
+          <Search className="w-10 h-10 mx-auto text-[var(--text-tertiary)] mb-3" />
+          <p className="text-base font-medium text-[var(--text-primary)]">No members found</p>
+          <p className="text-sm text-[var(--text-tertiary)] mt-1">Try a different search term</p>
+          <button
+            onClick={() => setSearch('')}
+            className="mt-3 text-sm font-medium text-brand-500 hover:text-brand-600 transition-colors"
+          >
+            Clear search
+          </button>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {teamMembers.map((member, i) => (
+        {filteredMembers.map((member, i) => (
           <motion.div key={member.id} variants={itemVariants}>
             <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden h-full">
               {/* Top accent bar */}
@@ -167,6 +206,7 @@ export default function ProjectTeam() {
           </motion.div>
         ))}
       </div>
+      )}
     </motion.div>
   );
 }
