@@ -69,6 +69,7 @@ export interface TeamMember {
   id: string;
   name: string;
   email: string;
+  phone: string;
   role: UserRole;
   designation: string;
   department: string;
