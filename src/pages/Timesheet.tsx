@@ -218,16 +218,18 @@ export default function Timesheet() {
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button
-              onClick={goToThisWeek}
-              className={`text-sm font-medium px-3 py-1 rounded-md transition-colors ${
-                isCurrentWeek
-                  ? 'bg-brand-500 text-white'
-                  : 'text-[var(--text-primary)] hover:bg-[var(--card-bg)]'
-              }`}
-            >
-              {getWeekLabel(weekOffset)}
-            </button>
+            {isCurrentWeek ? (
+              <span className="text-sm font-medium px-3 py-1 text-[var(--text-primary)]">
+                {getWeekLabel(weekOffset)}
+              </span>
+            ) : (
+              <button
+                onClick={goToThisWeek}
+                className="text-sm font-medium px-3 py-1 rounded-md text-brand-500 hover:bg-[var(--card-bg)] transition-colors"
+              >
+                {getWeekLabel(weekOffset)}
+              </button>
+            )}
             <button
               onClick={goToNextWeek}
               disabled={weekOffset >= 0}
