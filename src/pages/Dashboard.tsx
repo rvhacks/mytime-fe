@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Clock,
@@ -68,6 +69,7 @@ function getGreeting(): { text: string; emoji: string } {
 export default function Dashboard() {
   const { user } = useAuthStore();
   const greeting = getGreeting();
+  const navigate = useNavigate();
 
   const summaryCards = [
     {
@@ -120,13 +122,22 @@ export default function Dashboard() {
       className="space-y-6"
     >
       {/* Header */}
-      <motion.div variants={itemVariants}>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-          {greeting.text}, {user?.name?.split(' ')[0]} {greeting.emoji}
-        </h1>
-        <p className="text-[var(--text-secondary)] mt-1">
-          Here's your weekly overview for Apr 20 – Apr 26, 2026
-        </p>
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+            {greeting.text}, {user?.name?.split(' ')[0]} {greeting.emoji}
+          </h1>
+          <p className="text-[var(--text-secondary)] mt-1">
+            Here's your weekly overview for Apr 20 – Apr 26, 2026
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/timesheet')}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-200 active:scale-[0.97]"
+        >
+          <Send className="w-4 h-4" />
+          Submit Timesheet
+        </button>
       </motion.div>
 
       {/* Summary Cards */}
