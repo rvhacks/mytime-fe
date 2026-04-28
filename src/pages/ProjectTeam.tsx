@@ -6,7 +6,6 @@ import {
   Mail,
   Phone,
   Building2,
-  Shield,
   FolderKanban,
   Search,
 } from 'lucide-react';
@@ -151,16 +150,6 @@ export default function ProjectTeam() {
 
                 {/* Info Grid */}
                 <div className="space-y-3 pt-4 border-t border-[var(--border-secondary)]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center flex-shrink-0">
-                      <Shield className="w-4 h-4 text-brand-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-medium">Role</p>
-                      <p className="text-sm text-[var(--text-primary)] capitalize">{member.role}</p>
-                    </div>
-                  </div>
-
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0">
                       <Building2 className="w-4 h-4 text-purple-500" />
