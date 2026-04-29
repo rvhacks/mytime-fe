@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, MessageSquare, Filter, Clock, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, MessageSquare, Filter, Clock, Users, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -36,6 +36,9 @@ export default function Approvals() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [rejectDialog, setRejectDialog] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
+  const [viewDialog, setViewDialog] = useState<string | null>(null);
+
+  const { projects } = useAdminStore();
 
   const filtered = approvals.filter((a) => {
     if (statusFilter === 'all') return true;
@@ -56,6 +59,25 @@ export default function Approvals() {
     setRejectComment('');
     toast.success('Timesheet rejected');
   };
+
+  const viewItem = viewDialog ? approvals.find((a) => a.id === viewDialog) : null;
+
+  const getProjectName = (projectId: string) => {
+    const p = projects.find((proj) => proj.id === projectId);
+    return p?.name || projectId;
+  };
+
+  const getMilestoneName = (projectId: string, milestoneId: string) => {
+    const p = projects.find((proj) => proj.id === projectId);
+    const m = p?.milestones.find((ms) => ms.id === milestoneId);
+    return m?.name || milestoneId;
+  };
+
+  const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  const getRowTotal = (hours: Record<string, number>) =>
+    Object.values(hours).reduce((a, b) => a + b, 0);
 
   const barColors: Record<string, string> = {
     submitted: '#6366f1',
@@ -214,26 +236,37 @@ export default function Approvals() {
                       <StatusBadge status={item.status} />
                     </div>
 
-                    {item.status === 'pending' && (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={() => handleApprove(item.id)}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setRejectDialog(item.id)}
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Reject
-                        </Button>
-                      </div>
-                    )}
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewDialog(item.id)}
+                      >
+                        <Eye className="w-4 h-4" />
+                        View
+                      </Button>
+                      {item.status === 'pending' && (
+                        <>
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => handleApprove(item.id)}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setRejectDialog(item.id)}
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -262,6 +295,117 @@ export default function Approvals() {
             <Button variant="destructive" onClick={handleReject} disabled={!rejectComment.trim()}>
               Reject Timesheet
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Timesheet Dialog */}
+      <Dialog open={!!viewDialog} onOpenChange={() => setViewDialog(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {viewItem && <Avatar name={viewItem.userName} size="sm" />}
+              {viewItem?.userName}'s Timesheet
+            </DialogTitle>
+            <DialogDescription>
+              {viewItem && (
+                <span className="flex items-center gap-2">
+                  {new Date(viewItem.weekStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(viewItem.weekEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  <span className="mx-1">·</span>
+                  {viewItem.totalHours}h total
+                  <span className="mx-1">·</span>
+                  <StatusBadge status={viewItem.status} />
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewItem?.rows && viewItem.rows.length > 0 ? (
+            <div className="overflow-x-auto -mx-6 px-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border-secondary)]">
+                    <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 pr-3 w-40">Project</th>
+                    <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 pr-3 w-32">Milestone</th>
+                    <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 pr-3">Task</th>
+                    <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 w-16">Bill.</th>
+                    {dayLabels.map((d) => (
+                      <th key={d} className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 w-12">{d}</th>
+                    ))}
+                    <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 w-14">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewItem.rows.map((row) => (
+                    <tr key={row.id} className="border-b border-[var(--border-secondary)] last:border-0">
+                      <td className="py-3 pr-3">
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{getProjectName(row.projectId)}</span>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <span className="text-sm text-[var(--text-secondary)]">{getMilestoneName(row.projectId, row.milestoneId)}</span>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <span className="text-sm text-[var(--text-secondary)]">{row.taskDescription}</span>
+                      </td>
+                      <td className="py-3 text-center">
+                        {row.billable ? (
+                          <span className="inline-block w-5 h-5 rounded-md bg-accent-500 text-white text-xs leading-5 text-center">✓</span>
+                        ) : (
+                          <span className="inline-block w-5 h-5 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] text-xs leading-5 text-center">–</span>
+                        )}
+                      </td>
+                      {dayKeys.map((dk) => (
+                        <td key={dk} className="py-3 text-center">
+                          <span className={`text-sm font-medium ${(row.hours[dk] || 0) > 0 ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
+                            {row.hours[dk] || 0}
+                          </span>
+                        </td>
+                      ))}
+                      <td className="py-3 text-center">
+                        <span className="text-sm font-bold text-[var(--text-primary)]">{getRowTotal(row.hours)}h</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Totals row */}
+                  <tr className="bg-[var(--bg-tertiary)]">
+                    <td colSpan={4} className="py-3 pr-3">
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">Daily Total</span>
+                    </td>
+                    {dayKeys.map((dk) => {
+                      const dayTotal = viewItem.rows!.reduce((sum, r) => sum + (r.hours[dk] || 0), 0);
+                      return (
+                        <td key={dk} className="py-3 text-center">
+                          <span className={`text-sm font-semibold ${dayTotal > 8 ? 'text-warning-500' : 'text-[var(--text-primary)]'}`}>{dayTotal}h</span>
+                        </td>
+                      );
+                    })}
+                    <td className="py-3 text-center">
+                      <span className="text-sm font-bold text-brand-600 dark:text-brand-400">{viewItem.totalHours}h</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-[var(--text-tertiary)]">
+              No detailed timesheet data available.
+            </div>
+          )}
+
+          <DialogFooter>
+            {viewItem?.status === 'pending' && (
+              <>
+                <Button variant="success" size="sm" onClick={() => { handleApprove(viewItem.id); setViewDialog(null); }}>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Approve
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => { setViewDialog(null); setRejectDialog(viewItem.id); }}>
+                  <XCircle className="w-4 h-4" />
+                  Reject
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={() => setViewDialog(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

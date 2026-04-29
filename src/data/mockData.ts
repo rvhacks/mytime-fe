@@ -436,6 +436,10 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
     status: 'pending',
     submittedAt: '2026-04-26T17:00:00Z',
     projects: ['Phoenix Platform', 'Horizon Analytics'],
+    rows: [
+      { id: 'ar1', projectId: 'p1', milestoneId: 'm1', taskDescription: 'Component library development', billable: true, hours: { mon: 8, tue: 8, wed: 8, thu: 0, fri: 0, sat: 0, sun: 0 } },
+      { id: 'ar2', projectId: 'p2', milestoneId: 'm5', taskDescription: 'Dashboard charts implementation', billable: false, hours: { mon: 0, tue: 0, wed: 0, thu: 8, fri: 8, sat: 0, sun: 0 } },
+    ],
   },
   {
     id: 'a2',
@@ -447,6 +451,9 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
     status: 'pending',
     submittedAt: '2026-04-26T16:30:00Z',
     projects: ['Aurora Mobile'],
+    rows: [
+      { id: 'ar3', projectId: 'p3', milestoneId: 'm7', taskDescription: 'Mobile app UI screens', billable: true, hours: { mon: 8, tue: 8, wed: 8, thu: 8, fri: 8, sat: 0, sun: 0 } },
+    ],
   },
   {
     id: 'a3',
@@ -458,6 +465,10 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
     status: 'pending',
     submittedAt: '2026-04-26T17:15:00Z',
     projects: ['Titan ERP', 'Phoenix Platform'],
+    rows: [
+      { id: 'ar4', projectId: 'p5', milestoneId: 'm11', taskDescription: 'ERP module backend API', billable: true, hours: { mon: 8, tue: 8, wed: 6, thu: 0, fri: 0, sat: 0, sun: 0 } },
+      { id: 'ar5', projectId: 'p1', milestoneId: 'm2', taskDescription: 'API endpoint integration', billable: true, hours: { mon: 0, tue: 0, wed: 0, thu: 8, fri: 8, sat: 0, sun: 0 } },
+    ],
   },
   {
     id: 'a4',
@@ -469,6 +480,9 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
     status: 'approved',
     submittedAt: '2026-04-19T17:00:00Z',
     projects: ['Nebula Cloud'],
+    rows: [
+      { id: 'ar6', projectId: 'p4', milestoneId: 'm9', taskDescription: 'Infrastructure setup and config', billable: true, hours: { mon: 8, tue: 9, wed: 8, thu: 9, fri: 8, sat: 0, sun: 0 } },
+    ],
   },
   {
     id: 'a5',
@@ -480,6 +494,9 @@ export const APPROVAL_ITEMS: ApprovalItem[] = [
     status: 'rejected',
     submittedAt: '2026-04-19T16:45:00Z',
     projects: ['Phoenix Platform'],
+    rows: [
+      { id: 'ar7', projectId: 'p1', milestoneId: 'm1', taskDescription: 'UI/UX design iterations', billable: true, hours: { mon: 8, tue: 7, wed: 8, thu: 7, fri: 7, sat: 0, sun: 0 } },
+    ],
   },
 ];
 

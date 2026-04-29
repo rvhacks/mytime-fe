@@ -90,6 +90,7 @@ export interface ApprovalItem {
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
   projects: string[];
+  rows?: TimesheetRow[];
 }
 
 export interface WeeklySummary {
