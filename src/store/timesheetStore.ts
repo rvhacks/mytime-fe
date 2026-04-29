@@ -13,6 +13,7 @@ interface TimesheetStore {
   updateRowField: (rowId: string, field: keyof TimesheetRow, value: string | boolean) => void;
   addRow: () => void;
   removeRow: (rowId: string) => void;
+  copyFromLastWeek: () => boolean;
   saveDraft: () => Promise<void>;
   submitTimesheet: () => Promise<void>;
   recalculateTotal: () => void;
@@ -78,6 +79,36 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         currentTimesheet: { ...state.currentTimesheet, rows, totalHours },
       };
     });
+  },
+
+  copyFromLastWeek: () => {
+    const { pastTimesheets } = get();
+    if (pastTimesheets.length === 0) return false;
+
+    // Find the most recent past timesheet (sorted by weekStartDate desc)
+    const sorted = [...pastTimesheets].sort(
+      (a, b) => new Date(b.weekStartDate).getTime() - new Date(a.weekStartDate).getTime()
+    );
+    const lastWeek = sorted[0];
+
+    // Copy rows with new IDs, keep project/milestone/task/billable, zero hours
+    const copiedRows: TimesheetRow[] = lastWeek.rows.map((r) => ({
+      id: generateId(),
+      projectId: r.projectId,
+      milestoneId: r.milestoneId,
+      taskDescription: r.taskDescription,
+      billable: r.billable,
+      hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 },
+    }));
+
+    set((state) => ({
+      currentTimesheet: {
+        ...state.currentTimesheet,
+        rows: copiedRows,
+        totalHours: 0,
+      },
+    }));
+    return true;
   },
 
   saveDraft: async () => {

@@ -8,6 +8,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Copy,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -84,6 +85,7 @@ export default function Timesheet() {
     removeRow,
     saveDraft,
     submitTimesheet,
+    copyFromLastWeek,
     isSaving,
   } = useTimesheetStore();
 
@@ -458,10 +460,26 @@ export default function Timesheet() {
 
               {/* Add Row */}
               {!isLocked && (
-                <div className="p-4 border-t border-[var(--border-secondary)]">
+                <div className="p-4 border-t border-[var(--border-secondary)] flex items-center gap-2">
                   <Button variant="ghost" size="sm" onClick={addRow} className="text-brand-500 hover:text-brand-600">
                     <Plus className="w-4 h-4" />
                     Add Row
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const success = copyFromLastWeek();
+                      if (success) {
+                        toast.success('Copied rows from last week');
+                      } else {
+                        toast.error('No previous timesheet found to copy from');
+                      }
+                    }}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy from Last Week
                   </Button>
                 </div>
               )}
