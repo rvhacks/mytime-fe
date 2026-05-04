@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Filter, Calendar, DollarSign, Receipt } from 'lucide-react';
+import { Download, Filter, Calendar, DollarSign, Receipt, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -25,15 +25,30 @@ import toast, { Toaster } from 'react-hot-toast';
 
 export default function Reports() {
   const { projects } = useAdminStore();
-  const [dateFilter, setDateFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
 
-  const filteredTimesheets = PAST_TIMESHEETS.filter((ts) => {
-    if (projectFilter !== 'all') {
-      return ts.rows.some((r) => r.projectId === projectFilter);
-    }
-    return true;
-  });
+  const filteredTimesheets = useMemo(() => {
+    return PAST_TIMESHEETS.filter((ts) => {
+      // Date range filter
+      if (startDate && ts.weekStartDate < startDate) return false;
+      if (endDate && ts.weekEndDate > endDate) return false;
+
+      // Project filter
+      if (projectFilter !== 'all') {
+        return ts.rows.some((r) => r.projectId === projectFilter);
+      }
+      return true;
+    });
+  }, [startDate, endDate, projectFilter]);
+
+  const hasDateFilter = startDate || endDate;
+
+  const clearDateRange = () => {
+    setStartDate('');
+    setEndDate('');
+  };
 
   // Compute billable hours per past timesheet
   const getTimesheetBillable = (ts: typeof PAST_TIMESHEETS[0]) => {
@@ -128,16 +143,36 @@ export default function Reports() {
               <Filter className="w-4 h-4 text-[var(--text-tertiary)]" />
               <span className="text-sm font-medium text-[var(--text-secondary)]">Filters:</span>
             </div>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-            >
-              <option value="all">All Time</option>
-              <option value="this-month">This Month</option>
-              <option value="last-month">Last Month</option>
-              <option value="this-quarter">This Quarter</option>
-            </select>
+
+            {/* Date Range */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[var(--text-tertiary)] font-medium">From</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              />
+              <label className="text-xs text-[var(--text-tertiary)] font-medium">To</label>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              />
+              {hasDateFilter && (
+                <button
+                  onClick={clearDateRange}
+                  className="h-9 w-9 flex items-center justify-center rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-colors"
+                  title="Clear date range"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Project Filter */}
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
