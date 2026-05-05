@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit3, Trash2, Users, Search, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +17,9 @@ const emptyForm = {
 };
 
 export default function Employees() {
-  const { employees, designations, addEmployee, updateEmployee, deleteEmployee, isLoading } = useManagementStore();
+  const { employees, designations, addEmployee, updateEmployee, deleteEmployee, fetchEmployees, fetchDesignations, isLoading } = useManagementStore();
+
+  useEffect(() => { fetchEmployees(); fetchDesignations(); }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);

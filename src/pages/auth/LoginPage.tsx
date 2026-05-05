@@ -179,25 +179,26 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 pt-6 border-t border-[var(--border-secondary)]">
-            <p className="text-xs text-[var(--text-tertiary)] text-center mb-3">Demo Credentials</p>
+            <p className="text-xs text-[var(--text-tertiary)] text-center mb-2">Quick Login <span className="opacity-60">· Password: admin123</span></p>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Employee', email: 'employee@crystalts.com' },
-                { label: 'Manager', email: 'manager@crystalts.com' },
-                { label: 'Admin', email: 'admin@crystalts.com' },
+                { label: 'Admin', email: 'admin@crystalts.com', sub: 'Alex Johnson' },
+                { label: 'Manager', email: 'sarah@crystalts.com', sub: 'Sarah Williams' },
+                { label: 'Employee', email: 'mike@crystalts.com', sub: 'Mike Chen' },
               ].map((demo) => (
                 <button
                   key={demo.email}
                   type="button"
                   onClick={() => {
                     clearError();
-                    login(demo.email, 'password123').then((success) => {
+                    login(demo.email, 'admin123').then((success) => {
                       if (success) navigate('/dashboard');
                     });
                   }}
-                  className="text-xs py-2 px-3 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-all"
+                  className="group flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-xl border border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-brand-400 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 hover:text-brand-600 dark:hover:text-brand-400 transition-all"
                 >
-                  {demo.label}
+                  <span className="text-xs font-semibold">{demo.label}</span>
+                  <span className="text-[10px] opacity-60 group-hover:opacity-80 truncate max-w-full">{demo.email}</span>
                 </button>
               ))}
             </div>

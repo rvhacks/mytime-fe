@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit3, Trash2, Tag, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,9 @@ import {
 } from '@/components/ui/dialog';
 
 export default function Designations() {
-  const { designations, addDesignation, updateDesignation, deleteDesignation, isLoading } = useManagementStore();
+  const { designations, addDesignation, updateDesignation, deleteDesignation, fetchDesignations, isLoading } = useManagementStore();
+
+  useEffect(() => { fetchDesignations(); }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState('');

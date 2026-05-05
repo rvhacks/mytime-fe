@@ -12,7 +12,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { useAdminStore } from '@/store/adminStore';
-import { TEAM_MEMBERS } from '@/data/mockData';
+import { useManagementStore } from '@/store/managementStore';
+import { useEffect } from 'react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -27,15 +28,43 @@ const itemVariants = {
 export default function ProjectTeam() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects } = useAdminStore();
+  const { projects, fetchProjects } = useAdminStore();
+  const { employees, assignments, designations, fetchEmployees, fetchAssignments, fetchDesignations } = useManagementStore();
+
+  useEffect(() => {
+    fetchProjects();
+    fetchEmployees();
+    fetchAssignments();
+    fetchDesignations();
+  }, []);
 
   const project = projects.find((p) => p.id === projectId);
   const [search, setSearch] = useState('');
 
   const teamMembers = useMemo(() => {
     if (!project) return [];
-    return TEAM_MEMBERS.filter((m) => project.assignedEmployees.includes(m.id));
-  }, [project]);
+    // Get employee IDs assigned to this project
+    const assignedIds = assignments
+      .filter((a) => a.projectId === projectId)
+      .map((a) => a.employeeId);
+    return employees
+      .filter((e) => assignedIds.includes(e.id))
+      .map((e) => {
+        const desName = designations.find((d) => d.id === e.designationId)?.name || '';
+        return {
+          id: e.id,
+          name: `${e.firstName} ${e.lastName}`,
+          email: e.email,
+          phone: e.mobile,
+          designation: desName,
+          department: '',
+          status: e.status,
+          role: 'employee' as const,
+          hoursThisWeek: 0,
+          submissionStatus: 'pending' as const,
+        };
+      });
+  }, [project, employees, assignments, designations, projectId]);
 
   const filteredMembers = useMemo(() => {
     if (!search.trim()) return teamMembers;

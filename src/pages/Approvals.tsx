@@ -9,7 +9,15 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/States';
 import { useAdminStore } from '@/store/adminStore';
 import { useAuthStore } from '@/store/authStore';
-import { TEAM_HOURS_DATA } from '@/data/mockData';
+import { useEffect } from 'react';
+
+const TEAM_HOURS_DATA = [
+  { name: 'Alex J.', hours: 36, status: 'pending' },
+  { name: 'Emily D.', hours: 40, status: 'submitted' },
+  { name: 'James W.', hours: 38, status: 'submitted' },
+  { name: 'Priya S.', hours: 35, status: 'overdue' },
+  { name: 'David K.', hours: 42, status: 'submitted' },
+];
 import toast, { Toaster } from 'react-hot-toast';
 import {
   BarChart,
@@ -38,7 +46,11 @@ export default function Approvals() {
   const [rejectComment, setRejectComment] = useState('');
   const [viewDialog, setViewDialog] = useState<string | null>(null);
 
-  const { projects } = useAdminStore();
+  const { projects, fetchApprovals } = useAdminStore();
+
+  useEffect(() => {
+    fetchApprovals();
+  }, []);
 
   const filtered = approvals.filter((a) => {
     if (statusFilter === 'all') return true;

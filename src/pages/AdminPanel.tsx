@@ -17,7 +17,15 @@ import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/States';
 import { useAdminStore } from '@/store/adminStore';
-import { TEAM_MEMBERS, MONTHLY_OVERVIEW } from '@/data/mockData';
+import { useManagementStore } from '@/store/managementStore';
+import { useEffect } from 'react';
+
+const MONTHLY_OVERVIEW = [
+  { name: 'Jan', hours: 168, expected: 176, billable: 136, nonBillable: 32 },
+  { name: 'Feb', hours: 160, expected: 160, billable: 128, nonBillable: 32 },
+  { name: 'Mar', hours: 172, expected: 176, billable: 140, nonBillable: 32 },
+  { name: 'Apr', hours: 146, expected: 176, billable: 110, nonBillable: 36 },
+];
 import toast, { Toaster } from 'react-hot-toast';
 import {
   BarChart,
@@ -38,7 +46,13 @@ import {
 } from '@/components/ui/dialog';
 
 export default function AdminPanel() {
-  const { projects, addProject, updateProject, deleteProject, addMilestone } = useAdminStore();
+  const { projects, fetchProjects, addProject, updateProject, deleteProject } = useAdminStore();
+  const { employees, fetchEmployees } = useManagementStore();
+
+  useEffect(() => {
+    fetchProjects();
+    fetchEmployees();
+  }, []);
   const [activeTab, setActiveTab] = useState<'projects' | 'milestones' | 'overview'>('projects');
   const [showAddProject, setShowAddProject] = useState(false);
   const [showAddMilestone, setShowAddMilestone] = useState<string | null>(null);
@@ -80,12 +94,16 @@ export default function AdminPanel() {
     toast.success('Project created successfully');
   };
 
-  const handleAddMilestone = () => {
+  const handleAddMilestone = async () => {
     if (!milestoneName.trim() || !showAddMilestone) return;
-    addMilestone(showAddMilestone, milestoneName);
-    setMilestoneName('');
-    setShowAddMilestone(null);
-    toast.success('Milestone added');
+    try {
+      const { milestoneAPI } = await import('@/services/api');
+      await milestoneAPI.create({ projectId: showAddMilestone, name: milestoneName });
+      await fetchProjects();
+      setMilestoneName('');
+      setShowAddMilestone(null);
+      toast.success('Milestone added');
+    } catch { toast.error('Failed to add milestone'); }
   };
 
   const handleDeleteProject = async (id: string) => {
@@ -143,7 +161,7 @@ export default function AdminPanel() {
               <Users className="w-5 h-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xl font-bold text-[var(--text-primary)]">{TEAM_MEMBERS.length}</p>
+              <p className="text-xl font-bold text-[var(--text-primary)]">{employees.length}</p>
               <p className="text-xs text-[var(--text-secondary)]">Team Members</p>
             </div>
           </CardContent>

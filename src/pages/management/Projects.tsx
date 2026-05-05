@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit3, Trash2, FolderOpen, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,8 +22,10 @@ const emptyForm = {
 };
 
 export default function ManageProjects() {
-  const { projects, addProject, updateProject, deleteProject } = useAdminStore();
-  const { employees } = useManagementStore();
+  const { projects, addProject, updateProject, deleteProject, fetchProjects } = useAdminStore();
+  const { employees, fetchEmployees } = useManagementStore();
+
+  useEffect(() => { fetchProjects(); fetchEmployees(); }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);

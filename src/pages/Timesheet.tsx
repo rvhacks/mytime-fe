@@ -87,9 +87,12 @@ export default function Timesheet() {
     submitTimesheet,
     copyFromLastWeek,
     isSaving,
+    fetchTimesheets,
   } = useTimesheetStore();
 
-  const { projects } = useAdminStore();
+  const { projects, fetchProjects } = useAdminStore();
+
+  useEffect(() => { fetchTimesheets(); fetchProjects(); }, []);
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Compute the Monday of the current (real) week and the displayed week

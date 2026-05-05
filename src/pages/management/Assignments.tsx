@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Link2, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,8 +22,10 @@ const ROLE_LABELS: Record<ProjectRole, string> = {
 const emptyForm = { employeeId: '', projectId: '', rmId: '', role: '' as string };
 
 export default function Assignments() {
-  const { employees, assignments, addAssignment, deleteAssignment, isLoading } = useManagementStore();
-  const { projects } = useAdminStore();
+  const { employees, assignments, addAssignment, deleteAssignment, fetchEmployees, fetchAssignments, isLoading } = useManagementStore();
+  const { projects, fetchProjects } = useAdminStore();
+
+  useEffect(() => { fetchEmployees(); fetchAssignments(); fetchProjects(); }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');

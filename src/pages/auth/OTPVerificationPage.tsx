@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export default function OTPVerificationPage() {
   const navigate = useNavigate();
-  const { verifyOTP, isLoading, error, clearError } = useAuthStore();
+  const { verifyOTP, isLoading, error, clearError, _fpEmail } = useAuthStore();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -50,7 +50,7 @@ export default function OTPVerificationPage() {
     const code = otp.join('');
     if (code.length !== 6) return;
     clearError();
-    const success = await verifyOTP(code);
+    const success = await verifyOTP(_fpEmail, code);
     if (success) {
       navigate('/reset-password');
     }

@@ -16,7 +16,35 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useAuthStore } from '@/store/authStore';
-import { RECENT_ACTIVITY, WEEKLY_TREND, HOURS_PER_PROJECT, WEEKLY_BILLABLE_TREND, BILLABLE_SUMMARY } from '@/data/mockData';
+
+const RECENT_ACTIVITY = [
+  { id: 'act1', action: 'Timesheet Submitted', description: 'Weekly timesheet for Apr 13-19 submitted', timestamp: '2026-04-19T17:00:00Z', icon: 'send' },
+  { id: 'act2', action: 'Hours Logged', description: '8 hours logged on Phoenix Platform', timestamp: '2026-04-25T16:00:00Z', icon: 'clock' },
+  { id: 'act3', action: 'Approval Received', description: 'Timesheet for Apr 13-19 approved', timestamp: '2026-04-20T09:00:00Z', icon: 'check-circle' },
+  { id: 'act4', action: 'Project Assigned', description: 'Added to Titan ERP project', timestamp: '2026-04-15T10:00:00Z', icon: 'folder-plus' },
+  { id: 'act5', action: 'Profile Updated', description: 'Profile information updated', timestamp: '2026-04-10T14:00:00Z', icon: 'user' },
+];
+const WEEKLY_TREND = [
+  { name: 'Week 1', hours: 40, expected: 40 },
+  { name: 'Week 2', hours: 38, expected: 40 },
+  { name: 'Week 3', hours: 32, expected: 40 },
+  { name: 'Week 4', hours: 40, expected: 40 },
+  { name: 'Week 5', hours: 36, expected: 40 },
+];
+const HOURS_PER_PROJECT = [
+  { name: 'Phoenix Platform', value: 45, color: '#6366f1' },
+  { name: 'Horizon Analytics', value: 30, color: '#10b981' },
+  { name: 'Aurora Mobile', value: 20, color: '#f59e0b' },
+  { name: 'Titan ERP', value: 15, color: '#ef4444' },
+];
+const WEEKLY_BILLABLE_TREND = [
+  { name: 'Week 1', billable: 32, nonBillable: 8 },
+  { name: 'Week 2', billable: 30, nonBillable: 8 },
+  { name: 'Week 3', billable: 24, nonBillable: 8 },
+  { name: 'Week 4', billable: 33, nonBillable: 7 },
+  { name: 'Week 5', billable: 23, nonBillable: 13 },
+];
+const BILLABLE_SUMMARY = { totalBillable: 142, totalNonBillable: 44, billablePercentage: 76 };
 import {
   BarChart,
   Bar,

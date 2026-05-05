@@ -22,7 +22,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
-  const { resetPassword, isLoading } = useAuthStore();
+  const { resetPassword, isLoading, _fpEmail } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -31,7 +31,7 @@ export default function ResetPasswordPage() {
   });
 
   const onSubmit = async (data: FormData) => {
-    const result = await resetPassword(data.password);
+    const result = await resetPassword(_fpEmail, '', data.password);
     if (result) {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);

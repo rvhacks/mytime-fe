@@ -1,12 +1,40 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Filter, Calendar, DollarSign, Receipt, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { PAST_TIMESHEETS, HOURS_PER_PROJECT, WEEKLY_TREND, MONTHLY_OVERVIEW, MONTHLY_BILLABLE, BILLABLE_SUMMARY } from '@/data/mockData';
 import { useAdminStore } from '@/store/adminStore';
 import { useManagementStore } from '@/store/managementStore';
+import { useTimesheetStore } from '@/store/timesheetStore';
+
+const HOURS_PER_PROJECT = [
+  { name: 'Phoenix Platform', value: 45, color: '#6366f1' },
+  { name: 'Atlas CRM', value: 30, color: '#10b981' },
+  { name: 'Nexus Analytics', value: 20, color: '#f59e0b' },
+  { name: 'Orion Mobile', value: 15, color: '#ef4444' },
+];
+const WEEKLY_TREND = [
+  { name: 'Week 1', hours: 40, expected: 40 },
+  { name: 'Week 2', hours: 38, expected: 40 },
+  { name: 'Week 3', hours: 32, expected: 40 },
+  { name: 'Week 4', hours: 40, expected: 40 },
+  { name: 'Week 5', hours: 36, expected: 40 },
+];
+const MONTHLY_OVERVIEW = [
+  { name: 'Jan', hours: 168, expected: 176, billable: 136, nonBillable: 32 },
+  { name: 'Feb', hours: 160, expected: 160, billable: 128, nonBillable: 32 },
+  { name: 'Mar', hours: 172, expected: 176, billable: 140, nonBillable: 32 },
+  { name: 'Apr', hours: 146, expected: 176, billable: 110, nonBillable: 36 },
+];
+const MONTHLY_BILLABLE = [
+  { name: 'Jan', billable: 136, nonBillable: 32 },
+  { name: 'Feb', billable: 128, nonBillable: 32 },
+  { name: 'Mar', billable: 140, nonBillable: 32 },
+  { name: 'Apr', billable: 110, nonBillable: 36 },
+];
+const BILLABLE_SUMMARY = { totalBillable: 142, totalNonBillable: 44, billablePercentage: 76 };
+
 import {
   BarChart,
   Bar,
@@ -25,15 +53,22 @@ import {
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Reports() {
-  const { projects } = useAdminStore();
-  const { employees } = useManagementStore();
+  const { projects, fetchProjects } = useAdminStore();
+  const { employees, fetchEmployees } = useManagementStore();
+  const { pastTimesheets, fetchTimesheets } = useTimesheetStore();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
 
+  useEffect(() => {
+    fetchProjects();
+    fetchEmployees();
+    fetchTimesheets();
+  }, []);
+
   const filteredTimesheets = useMemo(() => {
-    return PAST_TIMESHEETS.filter((ts) => {
+    return pastTimesheets.filter((ts) => {
       // Date range filter
       if (startDate && ts.weekStartDate < startDate) return false;
       if (endDate && ts.weekEndDate > endDate) return false;
@@ -69,7 +104,7 @@ export default function Reports() {
   };
 
   // Compute billable hours per past timesheet
-  const getTimesheetBillable = (ts: typeof PAST_TIMESHEETS[0]) => {
+  const getTimesheetBillable = (ts: typeof pastTimesheets[0]) => {
     const billable = ts.rows
       .filter((r) => r.billable)
       .reduce((sum, r) => sum + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
