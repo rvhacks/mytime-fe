@@ -8,6 +8,9 @@ import type {
   TeamMember,
   ApprovalItem,
   ActivityItem,
+  Designation,
+  Employee,
+  ProjectAssignment,
 } from '@/types';
 
 // ========================================
@@ -58,8 +61,12 @@ export const PROJECTS: Project[] = [
     name: 'Phoenix Platform',
     code: 'PHX',
     color: '#6366f1',
+    description: 'Next-gen internal platform for workflow automation',
+    startDate: '2026-01-15',
+    endDate: '2026-08-30',
     status: 'active',
     assignedEmployees: ['u1', 'u2', 'u4', 'u11', 'u14'],
+    reportingManagers: ['u2'],
     milestones: [
       { id: 'm1', name: 'UI Redesign', projectId: 'p1', status: 'in-progress' },
       { id: 'm2', name: 'API Integration', projectId: 'p1', status: 'pending' },
@@ -71,8 +78,12 @@ export const PROJECTS: Project[] = [
     name: 'Horizon Analytics',
     code: 'HRZ',
     color: '#10b981',
+    description: 'Data analytics dashboard for business insights',
+    startDate: '2026-02-01',
+    endDate: '2026-07-31',
     status: 'active',
     assignedEmployees: ['u1', 'u5', 'u12', 'u13'],
+    reportingManagers: ['u2', 'u3'],
     milestones: [
       { id: 'm4', name: 'Data Pipeline', projectId: 'p2', status: 'completed' },
       { id: 'm5', name: 'Dashboard Build', projectId: 'p2', status: 'in-progress' },
@@ -84,8 +95,12 @@ export const PROJECTS: Project[] = [
     name: 'Aurora Mobile',
     code: 'AUR',
     color: '#f59e0b',
+    description: 'Cross-platform mobile application',
+    startDate: '2026-03-10',
+    endDate: '2026-09-30',
     status: 'active',
     assignedEmployees: ['u1', 'u2', 'u8', 'u15', 'u16'],
+    reportingManagers: ['u2'],
     milestones: [
       { id: 'm7', name: 'MVP Development', projectId: 'p3', status: 'in-progress' },
       { id: 'm8', name: 'Beta Release', projectId: 'p3', status: 'pending' },
@@ -96,8 +111,12 @@ export const PROJECTS: Project[] = [
     name: 'Nebula Cloud',
     code: 'NBL',
     color: '#8b5cf6',
+    description: 'Cloud migration and infrastructure project',
+    startDate: '2025-11-01',
+    endDate: '2026-06-30',
     status: 'on-hold',
     assignedEmployees: ['u2', 'u7', 'u11', 'u12'],
+    reportingManagers: ['u3'],
     milestones: [
       { id: 'm9', name: 'Infrastructure Setup', projectId: 'p4', status: 'completed' },
       { id: 'm10', name: 'Migration Plan', projectId: 'p4', status: 'pending' },
@@ -108,13 +127,58 @@ export const PROJECTS: Project[] = [
     name: 'Titan ERP',
     code: 'TTN',
     color: '#ef4444',
+    description: 'Enterprise resource planning system',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
     status: 'active',
     assignedEmployees: ['u1', 'u2', 'u3', 'u6', 'u10', 'u13'],
+    reportingManagers: ['u2', 'u3'],
     milestones: [
       { id: 'm11', name: 'Module Development', projectId: 'p5', status: 'in-progress' },
       { id: 'm12', name: 'Integration Testing', projectId: 'p5', status: 'pending' },
     ],
   },
+];
+
+// ========================================
+// DESIGNATIONS
+// ========================================
+export const DESIGNATIONS: Designation[] = [
+  { id: 'des1', name: 'Software Engineer', createdAt: '2024-01-01' },
+  { id: 'des2', name: 'Senior Software Engineer', createdAt: '2024-01-01' },
+  { id: 'des3', name: 'Frontend Developer', createdAt: '2024-01-01' },
+  { id: 'des4', name: 'Backend Developer', createdAt: '2024-01-01' },
+  { id: 'des5', name: 'QA Engineer', createdAt: '2024-01-01' },
+  { id: 'des6', name: 'DevOps Engineer', createdAt: '2024-01-01' },
+  { id: 'des7', name: 'UI/UX Designer', createdAt: '2024-01-01' },
+  { id: 'des8', name: 'Product Manager', createdAt: '2024-01-01' },
+  { id: 'des9', name: 'Engineering Manager', createdAt: '2024-01-01' },
+  { id: 'des10', name: 'System Administrator', createdAt: '2024-01-01' },
+  { id: 'des11', name: 'Business Analyst', createdAt: '2024-01-01' },
+  { id: 'des12', name: 'Cloud Architect', createdAt: '2024-01-01' },
+];
+
+// ========================================
+// EMPLOYEES
+// ========================================
+export const EMPLOYEES: Employee[] = [
+  { id: 'emp1', firstName: 'Alex', lastName: 'Johnson', email: 'employee@crystalts.com', mobile: '5551234567', dob: '1995-05-09', designationId: 'des1', joiningDate: '2024-03-15', generatedPassword: 'ALEX4567-0509', status: 'active', createdAt: '2024-03-15' },
+  { id: 'emp2', firstName: 'Sarah', lastName: 'Williams', email: 'manager@crystalts.com', mobile: '5552345678', dob: '1990-11-22', designationId: 'des9', joiningDate: '2023-01-10', generatedPassword: 'SARA5678-2211', status: 'active', createdAt: '2023-01-10' },
+  { id: 'emp3', firstName: 'Michael', lastName: 'Chen', email: 'admin@crystalts.com', mobile: '5553456789', dob: '1988-03-14', designationId: 'des10', joiningDate: '2022-06-01', generatedPassword: 'MICH6789-1403', status: 'active', createdAt: '2022-06-01' },
+  { id: 'emp4', firstName: 'Emily', lastName: 'Davis', email: 'emily.davis@crystalts.com', mobile: '5554567890', dob: '1996-08-17', designationId: 'des3', joiningDate: '2024-06-01', generatedPassword: 'EMIL7890-1708', status: 'active', createdAt: '2024-06-01' },
+  { id: 'emp5', firstName: 'James', lastName: 'Wilson', email: 'james.wilson@crystalts.com', mobile: '5555678901', dob: '1993-02-28', designationId: 'des4', joiningDate: '2024-04-15', generatedPassword: 'JAME8901-2802', status: 'active', createdAt: '2024-04-15' },
+  { id: 'emp6', firstName: 'Priya', lastName: 'Sharma', email: 'priya.sharma@crystalts.com', mobile: '9876543210', dob: '1994-12-05', designationId: 'des5', joiningDate: '2024-05-20', generatedPassword: 'PRIY3210-0512', status: 'active', createdAt: '2024-05-20' },
+];
+
+// ========================================
+// PROJECT ASSIGNMENTS
+// ========================================
+export const PROJECT_ASSIGNMENTS: ProjectAssignment[] = [
+  { id: 'pa1', employeeId: 'emp1', projectId: 'p1', rmId: 'emp2', role: 'IC', assignedAt: '2026-01-15' },
+  { id: 'pa2', employeeId: 'emp4', projectId: 'p1', rmId: 'emp2', role: 'IC', assignedAt: '2026-01-15' },
+  { id: 'pa3', employeeId: 'emp5', projectId: 'p2', rmId: 'emp2', role: 'IC', assignedAt: '2026-02-01' },
+  { id: 'pa4', employeeId: 'emp6', projectId: 'p5', rmId: 'emp3', role: 'QA', assignedAt: '2026-01-01' },
+  { id: 'pa5', employeeId: 'emp1', projectId: 'p5', rmId: 'emp2', role: 'IC', assignedAt: '2026-01-01' },
 ];
 
 // ========================================

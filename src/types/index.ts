@@ -4,6 +4,8 @@
 
 export type UserRole = 'employee' | 'manager' | 'admin';
 
+export type ProjectRole = 'IC' | 'MS' | 'TPM' | 'PM' | 'QA' | 'BA';
+
 export interface User {
   id: string;
   email: string;
@@ -16,21 +18,56 @@ export interface User {
   joinDate: string;
 }
 
+export interface Designation {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface Employee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  dob: string;
+  designationId: string;
+  joiningDate: string;
+  generatedPassword: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   code: string;
   color: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
   status: 'active' | 'completed' | 'on-hold';
   assignedEmployees: string[];
+  reportingManagers: string[];
   milestones: Milestone[];
 }
 
 export interface Milestone {
   id: string;
   name: string;
+  description?: string;
   projectId: string;
+  role?: ProjectRole;
   status: 'pending' | 'in-progress' | 'completed';
+}
+
+export interface ProjectAssignment {
+  id: string;
+  employeeId: string;
+  projectId: string;
+  rmId: string;
+  role: ProjectRole;
+  assignedAt: string;
 }
 
 export interface TimesheetRow {
@@ -114,3 +151,4 @@ export interface ChartDataPoint {
   value: number;
   color?: string;
 }
+

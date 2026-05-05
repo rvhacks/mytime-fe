@@ -18,8 +18,14 @@ import MyProjects from '@/pages/MyProjects';
 import ProjectDetail from '@/pages/ProjectDetail';
 import ProjectTeam from '@/pages/ProjectTeam';
 import Approvals from '@/pages/Approvals';
-import AdminPanel from '@/pages/AdminPanel';
 import Profile from '@/pages/Profile';
+
+// Management pages (admin)
+import Designations from '@/pages/management/Designations';
+import Employees from '@/pages/management/Employees';
+import ManageProjects from '@/pages/management/Projects';
+import Assignments from '@/pages/management/Assignments';
+import Milestones from '@/pages/management/Milestones';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuthStore();
@@ -88,15 +94,29 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminPanel />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/profile" element={<Profile />} />
+
+          {/* Management Routes — Admin Only */}
+          <Route
+            path="/management/designations"
+            element={<ProtectedRoute allowedRoles={['admin']}><Designations /></ProtectedRoute>}
+          />
+          <Route
+            path="/management/employees"
+            element={<ProtectedRoute allowedRoles={['admin']}><Employees /></ProtectedRoute>}
+          />
+          <Route
+            path="/management/projects"
+            element={<ProtectedRoute allowedRoles={['admin']}><ManageProjects /></ProtectedRoute>}
+          />
+          <Route
+            path="/management/assignments"
+            element={<ProtectedRoute allowedRoles={['admin']}><Assignments /></ProtectedRoute>}
+          />
+          <Route
+            path="/management/milestones"
+            element={<ProtectedRoute allowedRoles={['admin']}><Milestones /></ProtectedRoute>}
+          />
         </Route>
 
         {/* Catch-all */}

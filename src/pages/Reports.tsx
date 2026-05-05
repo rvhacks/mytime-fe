@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { PAST_TIMESHEETS, HOURS_PER_PROJECT, WEEKLY_TREND, MONTHLY_OVERVIEW, MONTHLY_BILLABLE, BILLABLE_SUMMARY } from '@/data/mockData';
 import { useAdminStore } from '@/store/adminStore';
+import { useManagementStore } from '@/store/managementStore';
 import {
   BarChart,
   Bar,
@@ -25,29 +26,46 @@ import toast, { Toaster } from 'react-hot-toast';
 
 export default function Reports() {
   const { projects } = useAdminStore();
+  const { employees } = useManagementStore();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
+  const [employeeFilter, setEmployeeFilter] = useState('all');
 
   const filteredTimesheets = useMemo(() => {
     return PAST_TIMESHEETS.filter((ts) => {
       // Date range filter
       if (startDate && ts.weekStartDate < startDate) return false;
       if (endDate && ts.weekEndDate > endDate) return false;
-
       // Project filter
       if (projectFilter !== 'all') {
-        return ts.rows.some((r) => r.projectId === projectFilter);
+        if (!ts.rows.some((r) => r.projectId === projectFilter)) return false;
+      }
+      // Employee filter (match userId)
+      if (employeeFilter !== 'all') {
+        // Map employee id to user id pattern
+        const emp = employees.find((e) => e.id === employeeFilter);
+        if (emp && ts.userId !== emp.id && ts.userId !== `u${emp.id.replace('emp', '')}`) {
+          // Simple heuristic: try matching userId
+          return false;
+        }
       }
       return true;
     });
-  }, [startDate, endDate, projectFilter]);
+  }, [startDate, endDate, projectFilter, employeeFilter, employees]);
 
   const hasDateFilter = startDate || endDate;
+  const hasAnyFilter = hasDateFilter || projectFilter !== 'all' || employeeFilter !== 'all';
 
   const clearDateRange = () => {
     setStartDate('');
     setEndDate('');
+  };
+
+  const clearAllFilters = () => {
+    setStartDate(''); setEndDate('');
+    setProjectFilter('all');
+    setEmployeeFilter('all');
   };
 
   // Compute billable hours per past timesheet
@@ -57,6 +75,29 @@ export default function Reports() {
       .reduce((sum, r) => sum + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
     return billable;
   };
+
+  // Derived stats from filtered data
+  const filteredTotalHours = filteredTimesheets.reduce((sum, ts) => sum + ts.totalHours, 0);
+  const filteredBillableHours = filteredTimesheets.reduce((sum, ts) => sum + getTimesheetBillable(ts), 0);
+  const filteredNonBillableHours = filteredTotalHours - filteredBillableHours;
+  const filteredBillableRate = filteredTotalHours > 0 ? Math.round((filteredBillableHours / filteredTotalHours) * 100) : 0;
+
+  // Derive hours per project from filtered timesheets
+  const filteredHoursPerProject = useMemo(() => {
+    const map: Record<string, { name: string; value: number; color: string }> = {};
+    filteredTimesheets.forEach((ts) => {
+      ts.rows.forEach((r) => {
+        const proj = projects.find((p) => p.id === r.projectId);
+        if (!proj) return;
+        const hours = Object.values(r.hours).reduce((a, b) => a + b, 0);
+        if (!map[r.projectId]) {
+          map[r.projectId] = { name: proj.name, value: 0, color: proj.color };
+        }
+        map[r.projectId].value += hours;
+      });
+    });
+    return Object.values(map);
+  }, [filteredTimesheets, projects]);
 
   return (
     <motion.div
@@ -88,7 +129,7 @@ export default function Reports() {
               <Calendar className="w-5 h-5 text-brand-500" />
             </div>
             <div>
-              <p className="text-xl font-bold text-[var(--text-primary)]">{BILLABLE_SUMMARY.totalBillable + BILLABLE_SUMMARY.totalNonBillable}h</p>
+              <p className="text-xl font-bold text-[var(--text-primary)]">{filteredTotalHours}h</p>
               <p className="text-xs text-[var(--text-secondary)]">Total Hours</p>
             </div>
           </CardContent>
@@ -99,7 +140,7 @@ export default function Reports() {
               <DollarSign className="w-5 h-5 text-accent-500" />
             </div>
             <div>
-              <p className="text-xl font-bold text-accent-600 dark:text-accent-400">{BILLABLE_SUMMARY.totalBillable}h</p>
+              <p className="text-xl font-bold text-accent-600 dark:text-accent-400">{filteredBillableHours}h</p>
               <p className="text-xs text-[var(--text-secondary)]">Billable Hours</p>
             </div>
           </CardContent>
@@ -110,7 +151,7 @@ export default function Reports() {
               <Receipt className="w-5 h-5 text-warning-500" />
             </div>
             <div>
-              <p className="text-xl font-bold text-warning-600 dark:text-warning-400">{BILLABLE_SUMMARY.totalNonBillable}h</p>
+              <p className="text-xl font-bold text-warning-600 dark:text-warning-400">{filteredNonBillableHours}h</p>
               <p className="text-xs text-[var(--text-secondary)]">Non-Billable Hours</p>
             </div>
           </CardContent>
@@ -119,12 +160,12 @@ export default function Reports() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-[var(--text-secondary)]">Billable Rate</span>
-              <span className="text-sm font-bold text-[var(--text-primary)]">{BILLABLE_SUMMARY.billablePercentage}%</span>
+              <span className="text-sm font-bold text-[var(--text-primary)]">{filteredBillableRate}%</span>
             </div>
             <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-3">
               <div
                 className="h-3 rounded-full bg-gradient-to-r from-accent-500 to-accent-400 transition-all duration-700"
-                style={{ width: `${BILLABLE_SUMMARY.billablePercentage}%` }}
+                style={{ width: `${filteredBillableRate}%` }}
               />
             </div>
             <div className="flex items-center justify-between mt-1.5">
@@ -183,6 +224,27 @@ export default function Reports() {
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
+
+            {/* Employee Filter */}
+            <select
+              value={employeeFilter}
+              onChange={(e) => setEmployeeFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            >
+              <option value="all">All Employees</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>
+              ))}
+            </select>
+
+            {hasAnyFilter && (
+              <button
+                onClick={clearAllFilters}
+                className="h-9 px-3 flex items-center gap-1 rounded-lg text-xs font-medium text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" /> Clear all
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -199,7 +261,7 @@ export default function Reports() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={HOURS_PER_PROJECT}
+                    data={filteredHoursPerProject.length > 0 ? filteredHoursPerProject : [{ name: 'No data', value: 1, color: '#e2e8f0' }]}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -207,7 +269,7 @@ export default function Reports() {
                     paddingAngle={4}
                     dataKey="value"
                   >
-                    {HOURS_PER_PROJECT.map((entry, index) => (
+                    {(filteredHoursPerProject.length > 0 ? filteredHoursPerProject : [{ name: 'No data', value: 1, color: '#e2e8f0' }]).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
