@@ -209,15 +209,19 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
   /**
    * Save only editable (draft/recalled/rejected) entries.
    * Locked entries (submitted/approved) are preserved on the backend.
+   * Local-only rows (no project or not yet saved) are preserved in the UI.
    */
   saveDraft: async () => {
     set({ isSaving: true });
     try {
       const ts = get().currentTimesheet;
-      // Only send editable rows to the save API
+      // Identify rows that should be sent to the API (have project + are editable)
       const editableRows = ts.rows.filter((r) =>
         r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status)
       );
+      // Identify local-only rows: no projectId (user is still filling them in)
+      const localOnlyRows = ts.rows.filter((r) => !r.projectId);
+
       const entries = editableRows.map((r) => ({
         projectId: r.projectId,
         milestoneId: r.milestoneId || null,
@@ -225,6 +229,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         billable: r.billable,
         hours: r.hours,
       }));
+
       if (entries.length === 0 && ts.rows.filter(r => r.projectId).length === 0) {
         set({ isSaving: false });
         return;
@@ -235,9 +240,15 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         weekEndDate: ts.weekEndDate,
         entries,
       });
-      // Only update with API response, but DON'T trigger auto-save again
+      // Merge API response with local-only rows the user hasn't completed yet
       const mapped = mapTimesheet(res.data.data);
-      set({ currentTimesheet: mapped, isSaving: false, _lastSavedHash: JSON.stringify(mapped.rows.map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours}))) });
+      const mergedRows = [...mapped.rows, ...localOnlyRows];
+      const merged = { ...mapped, rows: mergedRows };
+      // Hash only the API-saved rows (not local-only) to prevent loop
+      const savedHash = JSON.stringify(mapped.rows
+        .filter(r => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status))
+        .map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
+      set({ currentTimesheet: merged, isSaving: false, _lastSavedHash: savedHash });
     } catch {
       set({ isSaving: false });
     }

@@ -128,6 +128,20 @@ export default function Timesheet() {
     if (!proj || !proj.role) return [];
     return milestonesByRole[proj.role] || [];
   };
+
+  // Auto-fetch milestones for all roles used by existing timesheet rows
+  useEffect(() => {
+    if (assignedProjects.length === 0) return;
+    const roles = new Set<string>();
+    currentTimesheet.rows.forEach((row) => {
+      if (row.projectId) {
+        const proj = assignedProjects.find((p) => p.id === row.projectId);
+        if (proj?.role && !milestonesByRole[proj.role]) roles.add(proj.role);
+      }
+    });
+    roles.forEach((role) => fetchMilestonesForRole(role));
+  }, [assignedProjects, currentTimesheet.id]); // re-run when timesheet or projects load
+
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Compute the Monday of the current (real) week and the displayed week
@@ -167,7 +181,7 @@ export default function Timesheet() {
 
   const nonBillableHours = totalHours - billableHours;
 
-  // Auto-save draft on any change (debounced) — compares hash to prevent loop
+  // Auto-save draft on any change (debounced) — only when meaningful data exists
   const isFirstRender = useRef(true);
   const [autoSaveState, setAutoSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   useEffect(() => {
@@ -176,12 +190,18 @@ export default function Timesheet() {
       return;
     }
     if (isLocked) return;
-    // Build current hash of editable data
-    const currentHash = JSON.stringify(currentTimesheet.rows.map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
-    // Skip if nothing changed from last save (prevents infinite loop)
+    // A row is "saveable" only when it has project + at least 1 hour entered
+    const saveableRows = currentTimesheet.rows.filter(r =>
+      r.projectId &&
+      ['draft', 'recalled', 'rejected'].includes(r.status) &&
+      Object.values(r.hours).some(h => h > 0)
+    );
+    // Don't auto-save if no saveable rows exist
+    if (saveableRows.length === 0) return;
+    // Build hash only from saveable rows to detect real changes
+    const currentHash = JSON.stringify(saveableRows.map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
+    // Skip if nothing changed from last save
     if (currentHash === _lastSavedHash) return;
-    // Only auto-save if there are rows with projects
-    if (!currentTimesheet.rows.some(r => r.projectId)) return;
     setAutoSaveState('idle');
     const timer = setTimeout(async () => {
       setAutoSaveState('saving');
