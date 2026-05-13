@@ -179,7 +179,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 pt-6 border-t border-[var(--border-secondary)]">
-            <p className="text-xs text-[var(--text-tertiary)] text-center mb-2">Quick Login <span className="opacity-60">· Password: admin123</span></p>
+            <p className="text-xs text-[var(--text-tertiary)] text-center mb-2">Quick Login <span className="opacity-60">· Password: Password@123</span></p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { label: 'Admin', email: 'admin@crystalts.com', sub: 'Alex Johnson' },
@@ -191,7 +191,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => {
                     clearError();
-                    login(demo.email, 'admin123').then((success) => {
+                    login(demo.email, 'Password@123').then((success) => {
                       if (success) navigate('/dashboard');
                     });
                   }}
