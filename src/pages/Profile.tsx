@@ -5,10 +5,10 @@ import {
   Mail,
   Phone,
   Briefcase,
-  Building2,
   Calendar,
   Camera,
   Shield,
+  Cake,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,10 +26,10 @@ export default function Profile() {
   const profileFields = [
     { label: 'Full Name', value: user.name, icon: User },
     { label: 'Email Address', value: user.email, icon: Mail },
-    { label: 'Phone Number', value: user.phone, icon: Phone },
-    { label: 'Designation', value: user.designation, icon: Briefcase },
-    { label: 'Department', value: user.department, icon: Building2 },
-    { label: 'Join Date', value: new Date(user.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), icon: Calendar },
+    { label: 'Phone Number', value: user.phone || '—', icon: Phone },
+    { label: 'Designation', value: user.designation || '—', icon: Briefcase },
+    { label: 'Date of Birth', value: user.dob ? new Date(user.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—', icon: Cake },
+    { label: 'Join Date', value: user.joinDate ? new Date(user.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—', icon: Calendar },
   ];
 
   return (
@@ -57,7 +57,6 @@ export default function Profile() {
               className="relative cursor-pointer group"
               onMouseEnter={() => setAvatarHover(true)}
               onMouseLeave={() => setAvatarHover(false)}
-              onClick={() => toast.success('Profile image upload (mock)')}
             >
               <Avatar name={user.name} size="xl" className="w-24 h-24 text-2xl" />
               <motion.div
@@ -108,28 +107,6 @@ export default function Profile() {
                 </div>
                 <p className="text-sm text-[var(--text-primary)] pl-6 font-medium">{field.value}</p>
               </motion.div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Activity Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Activity Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Hours This Month', value: '146h', color: 'text-brand-500' },
-              { label: 'Timesheets Submitted', value: '4', color: 'text-accent-500' },
-              { label: 'Approval Rate', value: '92%', color: 'text-purple-500' },
-              { label: 'Active Projects', value: '3', color: 'text-warning-500' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center p-4 rounded-xl bg-[var(--bg-tertiary)]">
-                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">{stat.label}</p>
-              </div>
             ))}
           </div>
         </CardContent>

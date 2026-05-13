@@ -1,26 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, FolderKanban, Users, Target, Clock } from 'lucide-react';
+import { Search, FolderKanban, Target, Clock, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { useAdminStore } from '@/store/adminStore';
-import { useAuthStore } from '@/store/authStore';
+import { timesheetAPI } from '@/services/api';
 import { EmptyState } from '@/components/shared/States';
 
+interface AssignedProject {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  status: 'active' | 'completed' | 'on-hold';
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  role?: string;
+  assignedEmployees: string[];
+}
+
 export default function MyProjects() {
-  const { user } = useAuthStore();
-  const { projects } = useAdminStore();
   const navigate = useNavigate();
+  const [projects, setProjects] = useState<AssignedProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Filter projects assigned to current user
-  const assignedProjects = projects.filter((p) =>
-    user ? p.assignedEmployees.includes(user.id) : false
-  );
+  useEffect(() => {
+    async function fetchAssigned() {
+      setIsLoading(true);
+      try {
+        const res = await timesheetAPI.getAssignedProjects();
+        const raw = res.data.data || [];
+        setProjects(raw.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          code: p.project_code || p.code || '',
+          color: p.color || '#6366f1',
+          status: p.status || 'active',
+          description: p.description || '',
+          startDate: p.start_date || '',
+          endDate: p.end_date || '',
+          role: p.assignment_role || '',
+          assignedEmployees: (p.assignments || []).map((a: any) => a.user_id),
+        })));
+      } catch {
+        setProjects([]);
+      }
+      setIsLoading(false);
+    }
+    fetchAssigned();
+  }, []);
 
-  const filtered = assignedProjects.filter((p) => {
+  const filtered = projects.filter((p) => {
     const matchesSearch =
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.code.toLowerCase().includes(search.toLowerCase());
@@ -28,11 +61,13 @@ export default function MyProjects() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalMilestones = (p: typeof projects[0]) => p.milestones.length;
-  const completedMilestones = (p: typeof projects[0]) =>
-    p.milestones.filter((m) => m.status === 'completed').length;
-  const inProgressMilestones = (p: typeof projects[0]) =>
-    p.milestones.filter((m) => m.status === 'in-progress').length;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -56,7 +91,7 @@ export default function MyProjects() {
               <FolderKanban className="w-5 h-5 text-brand-500" />
             </div>
             <div>
-              <p className="text-xl font-bold text-[var(--text-primary)]">{assignedProjects.length}</p>
+              <p className="text-xl font-bold text-[var(--text-primary)]">{projects.length}</p>
               <p className="text-xs text-[var(--text-secondary)]">Total Projects</p>
             </div>
           </CardContent>
@@ -68,7 +103,7 @@ export default function MyProjects() {
             </div>
             <div>
               <p className="text-xl font-bold text-[var(--text-primary)]">
-                {assignedProjects.filter((p) => p.status === 'active').length}
+                {projects.filter((p) => p.status === 'active').length}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">Active</p>
             </div>
@@ -81,9 +116,9 @@ export default function MyProjects() {
             </div>
             <div>
               <p className="text-xl font-bold text-[var(--text-primary)]">
-                {assignedProjects.reduce((sum, p) => sum + inProgressMilestones(p), 0)}
+                {projects.filter((p) => p.status === 'on-hold').length}
               </p>
-              <p className="text-xs text-[var(--text-secondary)]">In-Progress Milestones</p>
+              <p className="text-xs text-[var(--text-secondary)]">On Hold</p>
             </div>
           </CardContent>
         </Card>
@@ -117,102 +152,58 @@ export default function MyProjects() {
       {filtered.length === 0 ? (
         <EmptyState
           title="No projects found"
-          description="Try adjusting your search or filter criteria"
-          action={{ label: 'Clear filters', onClick: () => { setSearch(''); setStatusFilter('all'); } }}
+          description={projects.length === 0 ? "You have no projects assigned yet. Contact your manager." : "Try adjusting your search or filter criteria"}
+          action={projects.length > 0 ? { label: 'Clear filters', onClick: () => { setSearch(''); setStatusFilter('all'); } } : undefined}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filtered.map((project, i) => {
-            const total = totalMilestones(project);
-            const completed = completedMilestones(project);
-            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-            return (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
-                  {/* Color bar */}
-                  <div className="h-1" style={{ backgroundColor: project.color }} />
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                          style={{ backgroundColor: project.color }}
-                        >
-                          {project.code.slice(0, 2)}
-                        </div>
-                        <div>
-                          <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-brand-500 transition-colors">
-                            {project.name}
-                          </h3>
-                          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                            Code: {project.code} · {project.assignedEmployees.length} members
-                          </p>
-                        </div>
+          {filtered.map((project, i) => (
+            <motion.div
+              key={project.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
+                {/* Color bar */}
+                <div className="h-1" style={{ backgroundColor: project.color }} />
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                        style={{ backgroundColor: project.color }}
+                      >
+                        {project.code.slice(0, 2)}
                       </div>
-                      <StatusBadge status={project.status} />
-                    </div>
-
-                    {/* Progress */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs text-[var(--text-tertiary)]">Milestone Progress</span>
-                        <span className="text-xs font-semibold text-[var(--text-primary)]">
-                          {completed}/{total} ({progress}%)
-                        </span>
-                      </div>
-                      <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full transition-all duration-700"
-                          style={{
-                            width: `${progress}%`,
-                            backgroundColor: project.color,
-                          }}
-                        />
+                      <div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-brand-500 transition-colors">
+                          {project.name}
+                        </h3>
+                        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                          Code: {project.code} {project.role && `· Role: ${project.role}`}
+                        </p>
                       </div>
                     </div>
+                    <StatusBadge status={project.status} />
+                  </div>
 
-                    {/* Milestones */}
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
-                        Milestones
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {project.milestones.map((m) => (
-                          <span
-                            key={m.id}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                              m.status === 'completed'
-                                ? 'bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400'
-                                : m.status === 'in-progress'
-                                ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-                                : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                m.status === 'completed'
-                                  ? 'bg-accent-500'
-                                  : m.status === 'in-progress'
-                                  ? 'bg-brand-500'
-                                  : 'bg-[var(--text-tertiary)]'
-                              }`}
-                            />
-                            {m.name}
-                          </span>
-                        ))}
-                      </div>
+                  {/* Date range */}
+                  {(project.startDate || project.endDate) && (
+                    <div className="text-xs text-[var(--text-tertiary)]">
+                      {project.startDate && new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      {project.startDate && project.endDate && ' – '}
+                      {project.endDate && new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                  )}
+
+                  {project.description && (
+                    <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-2">{project.description}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
       )}
     </motion.div>

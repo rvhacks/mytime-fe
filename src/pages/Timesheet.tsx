@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useTimesheetStore } from '@/store/timesheetStore';
-import { useAdminStore } from '@/store/adminStore';
+import { timesheetAPI, milestoneAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
 
 // ---------------------------------------------------------------------------
@@ -90,9 +90,28 @@ export default function Timesheet() {
     fetchTimesheets,
   } = useTimesheetStore();
 
-  const { projects, fetchProjects } = useAdminStore();
+  const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string}[]>([]);
 
-  useEffect(() => { fetchTimesheets(); fetchProjects(); }, []);
+  useEffect(() => {
+    fetchTimesheets();
+    timesheetAPI.getAssignedProjects().then((res) => {
+      const raw = res.data.data || [];
+      setAssignedProjects(raw.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        code: p.project_code || '',
+        status: p.status || 'active',
+      })));
+    }).catch(() => {});
+  }, []);
+
+  const [allMilestones, setAllMilestones] = useState<{id:string;name:string}[]>([]);
+  useEffect(() => {
+    milestoneAPI.getAll({ limit: 100 }).then((res) => {
+      const rows = res.data.data?.rows || res.data.data || [];
+      setAllMilestones((Array.isArray(rows) ? rows : []).map((m: any) => ({ id: m.id, name: m.name })));
+    }).catch(() => {});
+  }, []);
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Compute the Monday of the current (real) week and the displayed week
@@ -322,8 +341,7 @@ export default function Timesheet() {
                   <tbody>
                     <AnimatePresence>
                       {rows.map((row) => {
-                        const selectedProject = projects.find((p) => p.id === row.projectId);
-                        const milestones = selectedProject?.milestones || [];
+                        const selectedProject = assignedProjects.find((p) => p.id === row.projectId);
 
                         return (
                           <motion.tr
@@ -342,7 +360,7 @@ export default function Timesheet() {
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] pl-2 pr-8 truncate appearance-none bg-[length:16px_16px] bg-[right_0.5rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
                               >
                                 <option value="">Select project</option>
-                                {projects.filter((p) => p.status === 'active').map((p) => (
+                                {assignedProjects.filter((p) => p.status === 'active').map((p) => (
                                   <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
                               </select>
@@ -357,12 +375,11 @@ export default function Timesheet() {
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] pl-2 pr-8 truncate appearance-none bg-[length:16px_16px] bg-[right_0.5rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
                               >
                                 <option value="">Select milestone</option>
-                                {milestones.map((m) => (
+                                {allMilestones.map((m) => (
                                   <option key={m.id} value={m.id}>{m.name}</option>
                                 ))}
                               </select>
                             </td>
-
                             {/* Task Description */}
                             <td className="p-3">
                               <input

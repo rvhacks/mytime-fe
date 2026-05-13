@@ -4,7 +4,7 @@
 
 export type UserRole = 'employee' | 'manager' | 'admin';
 
-export type ProjectRole = 'IC' | 'MS' | 'TPM' | 'PM' | 'QA' | 'BA';
+export type ProjectRole = 'IC' | 'TC' | 'MS' | 'TPM' | 'PM' | 'QA' | 'BA';
 
 export interface User {
   id: string;
@@ -13,7 +13,7 @@ export interface User {
   role: UserRole;
   phone: string;
   designation: string;
-  department: string;
+  dob: string;
   avatar?: string;
   joinDate: string;
   reportingManagerId?: string;

@@ -106,6 +106,8 @@ export const milestoneAPI = {
 // ---- ADMIN: DASHBOARD ----
 export const dashboardAPI = {
   getStats: () => api.get('/admin/dashboard/stats'),
+  getActivity: () => api.get('/admin/dashboard/activity'),
+  getRoleConstants: () => api.get('/admin/role-constants'),
 };
 
 // ---- TIMESHEETS ----

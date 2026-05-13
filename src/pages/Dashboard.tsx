@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -13,40 +13,12 @@ import {
   User as UserIcon,
   DollarSign,
   Receipt,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useAuthStore } from '@/store/authStore';
 import { useAdminStore } from '@/store/adminStore';
-
-const RECENT_ACTIVITY = [
-  { id: 'act1', action: 'Timesheet Submitted', description: 'Weekly timesheet for Apr 13-19 submitted', timestamp: '2026-04-19T17:00:00Z', icon: 'send' },
-  { id: 'act2', action: 'Hours Logged', description: '8 hours logged on Phoenix Platform', timestamp: '2026-04-25T16:00:00Z', icon: 'clock' },
-  { id: 'act3', action: 'Approval Received', description: 'Timesheet for Apr 13-19 approved', timestamp: '2026-04-20T09:00:00Z', icon: 'check-circle' },
-  { id: 'act4', action: 'Project Assigned', description: 'Added to Titan ERP project', timestamp: '2026-04-15T10:00:00Z', icon: 'folder-plus' },
-  { id: 'act5', action: 'Profile Updated', description: 'Profile information updated', timestamp: '2026-04-10T14:00:00Z', icon: 'user' },
-];
-const WEEKLY_TREND = [
-  { name: 'Week 1', hours: 40, expected: 40 },
-  { name: 'Week 2', hours: 38, expected: 40 },
-  { name: 'Week 3', hours: 32, expected: 40 },
-  { name: 'Week 4', hours: 40, expected: 40 },
-  { name: 'Week 5', hours: 36, expected: 40 },
-];
-const HOURS_PER_PROJECT = [
-  { name: 'Phoenix Platform', value: 45, color: '#6366f1' },
-  { name: 'Horizon Analytics', value: 30, color: '#10b981' },
-  { name: 'Aurora Mobile', value: 20, color: '#f59e0b' },
-  { name: 'Titan ERP', value: 15, color: '#ef4444' },
-];
-const WEEKLY_BILLABLE_TREND = [
-  { name: 'Week 1', billable: 32, nonBillable: 8 },
-  { name: 'Week 2', billable: 30, nonBillable: 8 },
-  { name: 'Week 3', billable: 24, nonBillable: 8 },
-  { name: 'Week 4', billable: 33, nonBillable: 7 },
-  { name: 'Week 5', billable: 23, nonBillable: 13 },
-];
-const BILLABLE_SUMMARY = { totalBillable: 142, totalNonBillable: 44, billablePercentage: 76 };
+import { dashboardAPI } from '@/services/api';
 import {
   BarChart,
   Bar,
@@ -55,13 +27,36 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  AreaChart,
-  Area,
   PieChart,
   Pie,
 } from 'recharts';
+
+// ---------------------------------------------------------------------------
+// Week date helpers (same approach as Timesheet)
+// ---------------------------------------------------------------------------
+
+function getMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatWeekRange(monday: Date): string {
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const year = sunday.getFullYear();
+  return `${fmt(monday)} – ${fmt(sunday)}, ${year}`;
+}
+
+// ---------------------------------------------------------------------------
+// Animation variants
+// ---------------------------------------------------------------------------
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -82,20 +77,52 @@ const iconMap: Record<string, React.ReactNode> = {
   'check-circle': <CheckCircle2 className="w-4 h-4" />,
   'folder-plus': <FolderPlus className="w-4 h-4" />,
   user: <UserIcon className="w-4 h-4" />,
+  timesheet: <Send className="w-4 h-4" />,
+  project: <FolderPlus className="w-4 h-4" />,
+  employee: <UserIcon className="w-4 h-4" />,
 };
 
-const BILLABLE_PIE = [
-  { name: 'Billable', value: BILLABLE_SUMMARY.totalBillable, color: '#10b981' },
-  { name: 'Non-Billable', value: BILLABLE_SUMMARY.totalNonBillable, color: '#f59e0b' },
-];
+// ---------------------------------------------------------------------------
+// Activity type
+// ---------------------------------------------------------------------------
+
+interface Activity {
+  id: string;
+  action: string;
+  description: string;
+  timestamp: string;
+  type: string;
+  category: string;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function Dashboard() {
   const { user } = useAuthStore();
   const { dashboardStats, fetchDashboardStats } = useAdminStore();
   const navigate = useNavigate();
 
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
+
+  // Dynamic current week
+  const currentWeekRange = useMemo(() => {
+    const monday = getMonday(new Date());
+    return formatWeekRange(monday);
+  }, []);
+
   useEffect(() => {
     fetchDashboardStats();
+    // Fetch recent activity from backend
+    setActivitiesLoading(true);
+    dashboardAPI.getActivity()
+      .then((res) => {
+        setActivities(res.data.data || []);
+      })
+      .catch(() => setActivities([]))
+      .finally(() => setActivitiesLoading(false));
   }, [fetchDashboardStats]);
 
   const stats = dashboardStats;
@@ -144,6 +171,16 @@ export default function Dashboard() {
     },
   ];
 
+  // Billable pie (real data)
+  const billablePie = stats
+    ? [
+        { name: 'Billable', value: Math.round(stats.billableHours), color: '#10b981' },
+        { name: 'Non-Billable', value: Math.round(stats.nonBillableHours), color: '#f59e0b' },
+      ]
+    : [];
+
+  const isAdmin = user?.role === 'admin';
+
   return (
     <motion.div
       variants={containerVariants}
@@ -156,16 +193,18 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            Here's your weekly overview for Apr 20 – Apr 26, 2026
+            Here's your weekly overview for {currentWeekRange}
           </p>
         </div>
-        <button
-          onClick={() => navigate('/timesheet')}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-200 active:scale-[0.97]"
-        >
-          <Send className="w-4 h-4" />
-          Submit Timesheet
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={() => navigate('/timesheet')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all duration-200 active:scale-[0.97]"
+          >
+            <Send className="w-4 h-4" />
+            Submit Timesheet
+          </button>
+        )}
       </motion.div>
 
       {/* Summary Cards */}
@@ -180,10 +219,14 @@ export default function Dashboard() {
                     {card.icon}
                   </div>
                 </div>
-                <p className="text-3xl font-bold text-[var(--text-primary)] mb-1">{card.value}</p>
-                <p className="text-xs text-[var(--text-tertiary)] mb-2">{card.subtitle}</p>
-                <div className="flex items-center gap-1">
-                  <ArrowUpRight className={`w-3 h-3 ${card.trendUp ? 'text-accent-500' : 'text-warning-500 rotate-90'}`} />
+                <p className="text-2xl font-bold text-[var(--text-primary)]">{card.value}</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">{card.subtitle}</p>
+                <div className="flex items-center gap-1 mt-2">
+                  {card.trendUp ? (
+                    <ArrowUpRight className="w-3 h-3 text-accent-500" />
+                  ) : (
+                    <AlertCircle className="w-3 h-3 text-warning-500" />
+                  )}
                   <span className={`text-xs font-medium ${card.trendUp ? 'text-accent-500' : 'text-warning-500'}`}>
                     {card.trend}
                   </span>
@@ -194,218 +237,141 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Hours Trend */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Weekly Hours Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={WEEKLY_TREND}>
-                    <defs>
-                      <linearGradient id="hoursGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary)" />
-                    <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={12} />
-                    <YAxis stroke="var(--text-tertiary)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--card-bg)',
-                        border: '1px solid var(--card-border)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="hours"
-                      stroke="#6366f1"
-                      strokeWidth={2}
-                      fill="url(#hoursGrad)"
-                      name="Logged"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="expected"
-                      stroke="#94a3b8"
-                      strokeWidth={1}
-                      strokeDasharray="5 5"
-                      fill="none"
-                      name="Expected"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Hours Per Project */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Hours by Project</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={HOURS_PER_PROJECT} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary)" horizontal={false} />
-                    <XAxis type="number" stroke="var(--text-tertiary)" fontSize={12} />
-                    <YAxis dataKey="name" type="category" width={120} stroke="var(--text-tertiary)" fontSize={11} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--card-bg)',
-                        border: '1px solid var(--card-border)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Bar dataKey="value" radius={[0, 6, 6, 0]} name="Hours">
-                      {HOURS_PER_PROJECT.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Billable vs Non-Billable Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Billable Trend */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Billable vs Non-Billable (Weekly)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={WEEKLY_BILLABLE_TREND}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-secondary)" />
-                    <XAxis dataKey="name" stroke="var(--text-tertiary)" fontSize={12} />
-                    <YAxis stroke="var(--text-tertiary)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--card-bg)',
-                        border: '1px solid var(--card-border)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
-                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
-                    <Bar dataKey="billable" fill="#10b981" radius={[4, 4, 0, 0]} name="Billable" stackId="a" />
-                    <Bar dataKey="nonBillable" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Non-Billable" stackId="a" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Billable Pie */}
-        <motion.div variants={itemVariants}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Billable Ratio (Month-to-Date)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center">
-                <div className="w-1/2">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={BILLABLE_PIE}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={80}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {BILLABLE_PIE.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--card-bg)',
-                          border: '1px solid var(--card-border)',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="w-1/2 space-y-4">
-                  <div className="text-center">
-                    <p className="text-4xl font-bold text-[var(--text-primary)]">{BILLABLE_SUMMARY.billablePercentage}%</p>
-                    <p className="text-sm text-[var(--text-tertiary)] mt-1">Billable Rate</p>
+      {/* Billable Ratio Chart */}
+      {billablePie.length > 0 && billablePie.some((d) => d.value > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div variants={itemVariants}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Billable Ratio (Last 30 Days)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 flex items-center">
+                  <div className="w-1/2">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={billablePie}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={80}
+                          paddingAngle={4}
+                          dataKey="value"
+                        >
+                          {billablePie.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--card-bg)',
+                            border: '1px solid var(--card-border)',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-2">
-                      <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full bg-accent-500" />
-                        <span className="text-sm text-[var(--text-secondary)]">Billable</span>
-                      </div>
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{BILLABLE_SUMMARY.totalBillable}h</span>
+                  <div className="w-1/2 space-y-4">
+                    <div className="text-center">
+                      <p className="text-4xl font-bold text-[var(--text-primary)]">{billableRate}%</p>
+                      <p className="text-sm text-[var(--text-tertiary)] mt-1">Billable Rate</p>
                     </div>
-                    <div className="flex items-center justify-between px-2">
-                      <div className="flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full bg-warning-500" />
-                        <span className="text-sm text-[var(--text-secondary)]">Non-Billable</span>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-accent-500" />
+                          <span className="text-sm text-[var(--text-secondary)]">Billable</span>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{Math.round(stats?.billableHours || 0)}h</span>
                       </div>
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">{BILLABLE_SUMMARY.totalNonBillable}h</span>
+                      <div className="flex items-center justify-between px-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-warning-500" />
+                          <span className="text-sm text-[var(--text-secondary)]">Non-Billable</span>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{Math.round(stats?.nonBillableHours || 0)}h</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-      {/* Recent Activity */}
+          {/* Quick Stats */}
+          <motion.div variants={itemVariants}>
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle className="text-base">Organization Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                    <p className="text-2xl font-bold text-brand-500">{stats?.totalEmployees || 0}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Active Employees</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                    <p className="text-2xl font-bold text-accent-500">{stats?.activeProjects || 0}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Active Projects</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                    <p className="text-2xl font-bold text-purple-500">{Math.round(stats?.totalHoursLogged || 0)}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Hours This Month</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                    <p className="text-2xl font-bold text-warning-500">{stats?.pendingApprovals || 0}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Pending Approvals</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Recent Activity (API-driven) */}
       <motion.div variants={itemVariants}>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1">
-              {RECENT_ACTIVITY.map((activity, i) => (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors group"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] group-hover:bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-secondary)] transition-colors">
-                    {iconMap[activity.icon] || <Clock className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--text-primary)]">{activity.action}</p>
-                    <p className="text-xs text-[var(--text-tertiary)] truncate">{activity.description}</p>
-                  </div>
-                  <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
-                    {new Date(activity.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
+            {activitiesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-8">
+                <BarChart3 className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-2" />
+                <p className="text-sm text-[var(--text-tertiary)]">No recent activity yet</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {activities.map((activity, i) => (
+                  <motion.div
+                    key={activity.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors group"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] group-hover:bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-secondary)] transition-colors">
+                      {iconMap[activity.category] || iconMap[activity.type] || <Clock className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{activity.action}</p>
+                      <p className="text-xs text-[var(--text-tertiary)] truncate">{activity.description}</p>
+                    </div>
+                    <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
+                      {new Date(activity.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

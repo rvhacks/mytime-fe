@@ -25,7 +25,7 @@ function mapUser(u: any): User {
     role: u.role as UserRole,
     phone: u.mobile || '',
     designation: u.designation?.name || '',
-    department: u.department || '',
+    dob: u.dob || '',
     avatar: u.avatarUrl || '',
     joinDate: u.joining_date || '',
   };

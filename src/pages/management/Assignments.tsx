@@ -8,16 +8,11 @@ import { Avatar } from '@/components/ui/avatar';
 import { useManagementStore } from '@/store/managementStore';
 import { useAdminStore } from '@/store/adminStore';
 import type { ProjectRole } from '@/types';
+import { PROJECT_ROLE_KEYS, PROJECT_ROLES, getRoleLabel } from '@/constants/roles';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-
-const PROJECT_ROLES: ProjectRole[] = ['IC', 'MS', 'TPM', 'PM', 'QA', 'BA'];
-const ROLE_LABELS: Record<ProjectRole, string> = {
-  IC: 'Individual Contributor', MS: 'Milestone Lead', TPM: 'Technical PM',
-  PM: 'Project Manager', QA: 'QA Engineer', BA: 'Business Analyst',
-};
 
 const emptyForm = { employeeId: '', projectId: '', role: '' as string };
 
@@ -178,7 +173,7 @@ export default function Assignments() {
               <select value={form.role} onChange={(e) => updateField('role', e.target.value)}
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
                 <option value="">Select role</option>
-                {PROJECT_ROLES.map((r) => <option key={r} value={r}>{r} — {ROLE_LABELS[r]}</option>)}
+                {PROJECT_ROLE_KEYS.map((r) => <option key={r} value={r}>{r} — {getRoleLabel(r)}</option>)}
               </select>
             </div>
           </div>

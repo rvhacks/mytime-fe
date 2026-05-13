@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { milestoneAPI } from '@/services/api';
 import type { ProjectRole } from '@/types';
+import { PROJECT_ROLE_KEYS, getRoleLabel } from '@/constants/roles';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 
-const PROJECT_ROLES: ProjectRole[] = ['IC', 'MS', 'TPM', 'PM', 'QA', 'BA'];
+
 
 interface MilestoneItem {
   id: string;
@@ -139,7 +140,7 @@ export default function Milestones() {
         <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
           className="h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
           <option value="all">All Roles</option>
-          {PROJECT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                          {PROJECT_ROLE_KEYS.map((r) => <option key={r} value={r}>{r} — {getRoleLabel(r)}</option>)}
         </select>
       </div>
 
@@ -227,7 +228,7 @@ export default function Milestones() {
               <select value={formRole} onChange={(e) => setFormRole(e.target.value)}
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
                 <option value="">Select role</option>
-                {PROJECT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                                {PROJECT_ROLE_KEYS.map((r) => <option key={r} value={r}>{r} — {getRoleLabel(r)}</option>)}
               </select>
             </div>
           </div>
@@ -261,7 +262,7 @@ export default function Milestones() {
               <select value={formRole} onChange={(e) => setFormRole(e.target.value)}
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
                 <option value="">Select role</option>
-                {PROJECT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                                {PROJECT_ROLE_KEYS.map((r) => <option key={r} value={r}>{r} — {getRoleLabel(r)}</option>)}
               </select>
             </div>
           </div>

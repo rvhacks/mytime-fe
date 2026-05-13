@@ -81,7 +81,14 @@ export default function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/timesheet" element={<Timesheet />} />
+          <Route
+            path="/timesheet"
+            element={
+              <ProtectedRoute allowedRoles={['employee', 'manager']}>
+                <Timesheet />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/reports" element={<Reports />} />
           <Route path="/projects" element={<MyProjects />} />
           <Route path="/projects/:projectId" element={<ProjectDetail />} />
