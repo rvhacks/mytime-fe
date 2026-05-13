@@ -116,6 +116,7 @@ export const timesheetAPI = {
   getWeekTimesheet: (weekStartDate: string) =>
     api.get('/timesheets/week', { params: { weekStartDate } }),
   getAssignedProjects: () => api.get('/timesheets/assigned-projects'),
+  getMilestonesByRole: (role: string) => api.get(`/timesheets/milestones/role/${role}`),
   save: (data: any) => api.post('/timesheets/save', data),
   submit: (timesheetId: string) => api.post('/timesheets/submit', { timesheetId }),
   recall: (id: string) => api.post(`/timesheets/recall/${id}`),

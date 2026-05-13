@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -9,12 +9,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useTimesheetStore } from '@/store/timesheetStore';
-import { timesheetAPI, milestoneAPI } from '@/services/api';
+import { timesheetAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
 
 // ---------------------------------------------------------------------------
@@ -90,28 +91,42 @@ export default function Timesheet() {
     fetchTimesheets,
   } = useTimesheetStore();
 
-  const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string}[]>([]);
+  const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string;role:string}[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
 
   useEffect(() => {
     fetchTimesheets();
+    setProjectsLoading(true);
     timesheetAPI.getAssignedProjects().then((res) => {
       const raw = res.data.data || [];
+      // API returns FLATTENED project objects with assignment_role
       setAssignedProjects(raw.map((p: any) => ({
         id: p.id,
-        name: p.name,
+        name: p.name || '',
         code: p.project_code || '',
         status: p.status || 'active',
+        role: p.assignment_role || '',
       })));
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setProjectsLoading(false));
   }, []);
 
-  const [allMilestones, setAllMilestones] = useState<{id:string;name:string}[]>([]);
-  useEffect(() => {
-    milestoneAPI.getAll({ limit: 100 }).then((res) => {
-      const rows = res.data.data?.rows || res.data.data || [];
-      setAllMilestones((Array.isArray(rows) ? rows : []).map((m: any) => ({ id: m.id, name: m.name })));
-    }).catch(() => {});
-  }, []);
+  // Role-based milestones: keyed by role string
+  const [milestonesByRole, setMilestonesByRole] = useState<Record<string, {id:string;name:string}[]>>({});
+  const fetchMilestonesForRole = useCallback(async (role: string) => {
+    if (!role || milestonesByRole[role]) return;
+    try {
+      const res = await timesheetAPI.getMilestonesByRole(role);
+      const data = res.data.data || [];
+      setMilestonesByRole((prev) => ({ ...prev, [role]: data.map((m: any) => ({ id: m.id, name: m.name })) }));
+    } catch { /* ignore */ }
+  }, [milestonesByRole]);
+
+  // When a project is selected, auto-fetch milestones for its role
+  const getMilestonesForProject = (projectId: string) => {
+    const proj = assignedProjects.find((p) => p.id === projectId);
+    if (!proj || !proj.role) return [];
+    return milestonesByRole[proj.role] || [];
+  };
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Compute the Monday of the current (real) week and the displayed week
@@ -130,8 +145,11 @@ export default function Timesheet() {
     return match || null;
   }, [isCurrentWeek, currentTimesheet, pastTimesheets, displayMonday]);
 
+  // Backdate support: allow editing past weeks (configurable limit)
+  const BACKDATE_LIMIT_WEEKS = 4;
+  const isBackdatedBeyondLimit = weekOffset < -BACKDATE_LIMIT_WEEKS;
   const isLocked =
-    !isCurrentWeek ||
+    isBackdatedBeyondLimit ||
     activeTimesheet?.status === 'submitted' ||
     activeTimesheet?.status === 'approved';
 
@@ -181,8 +199,21 @@ export default function Timesheet() {
   };
 
   const goToPrevWeek = () => setWeekOffset((o) => o - 1);
-  const goToNextWeek = () => setWeekOffset((o) => Math.min(0, o + 1)); // can't go past current week
+  const goToNextWeek = () => setWeekOffset((o) => o + 1); // allow future weeks too
   const goToThisWeek = () => setWeekOffset(0);
+
+  // Draft hydration: when navigating weeks, load from API
+  const { loadWeek } = useTimesheetStore();
+  useEffect(() => {
+    if (weekOffset !== 0) {
+      const monday = shiftWeek(thisMonday, weekOffset);
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      const start = monday.toISOString().slice(0, 10);
+      const end = sunday.toISOString().slice(0, 10);
+      loadWeek(start, end);
+    }
+  }, [weekOffset]);
 
   // Status badge with auto-save indicator
   const renderStatusBadge = () => {
@@ -326,12 +357,15 @@ export default function Timesheet() {
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-20">
                         Billable
                       </th>
-                      {days.map((day) => (
-                        <th key={day.key} className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-16">
-                          <div>{day.label}</div>
-                          <div className="text-[10px] text-[var(--text-tertiary)] font-normal">{day.date}</div>
-                        </th>
-                      ))}
+                      {days.map((day) => {
+                        const isWe = day.key === 'sat' || day.key === 'sun';
+                        return (
+                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider p-4 w-16 ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
+                            <div>{day.label}</div>
+                            <div className="text-[10px] text-[var(--text-tertiary)] font-normal">{day.date}</div>
+                          </th>
+                        );
+                      })}
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-16">
                         Total
                       </th>
@@ -342,6 +376,7 @@ export default function Timesheet() {
                     <AnimatePresence>
                       {rows.map((row) => {
                         const selectedProject = assignedProjects.find((p) => p.id === row.projectId);
+                        const rowMilestones = getMilestonesForProject(row.projectId);
 
                         return (
                           <motion.tr
@@ -355,7 +390,14 @@ export default function Timesheet() {
                             <td className="p-3">
                               <select
                                 value={row.projectId}
-                                onChange={(e) => updateRowField(row.id, 'projectId', e.target.value)}
+                                onChange={(e) => {
+                                  const projectId = e.target.value;
+                                  updateRowField(row.id, 'projectId', projectId);
+                                  updateRowField(row.id, 'milestoneId', ''); // reset milestone
+                                  // Fetch milestones for the selected project's role
+                                  const proj = assignedProjects.find((p) => p.id === projectId);
+                                  if (proj?.role) fetchMilestonesForRole(proj.role);
+                                }}
                                 disabled={isLocked}
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] pl-2 pr-8 truncate appearance-none bg-[length:16px_16px] bg-[right_0.5rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
                               >
@@ -366,7 +408,7 @@ export default function Timesheet() {
                               </select>
                             </td>
 
-                            {/* Milestone */}
+                            {/* Milestone (Role-filtered) */}
                             <td className="p-3">
                               <select
                                 value={row.milestoneId}
@@ -375,7 +417,7 @@ export default function Timesheet() {
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] pl-2 pr-8 truncate appearance-none bg-[length:16px_16px] bg-[right_0.5rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
                               >
                                 <option value="">Select milestone</option>
-                                {allMilestones.map((m) => (
+                                {rowMilestones.map((m) => (
                                   <option key={m.id} value={m.id}>{m.name}</option>
                                 ))}
                               </select>
@@ -416,21 +458,32 @@ export default function Timesheet() {
                               </label>
                             </td>
 
-                            {/* Day Hours */}
-                            {days.map((day) => (
-                              <td key={day.key} className="p-2">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="24"
-                                  step="0.5"
-                                  value={row.hours[day.key] || ''}
-                                  onChange={(e) => updateRowHours(row.id, day.key, parseFloat(e.target.value) || 0)}
-                                  disabled={isLocked}
-                                  className="w-14 h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                              </td>
-                            ))}
+                            {/* Day Hours — Weekend UX */}
+                            {days.map((day) => {
+                              const isWeekend = day.key === 'sat' || day.key === 'sun';
+                              return (
+                                <td key={day.key} className={`p-2 ${isWeekend ? 'bg-[var(--bg-tertiary)]/50' : ''}`}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="24"
+                                    step="0.5"
+                                    value={row.hours[day.key] || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      if (isWeekend && val > 0) {
+                                        toast('You are logging hours on weekend.', { icon: '⚠️', id: `weekend-${row.id}-${day.key}` });
+                                      }
+                                      updateRowHours(row.id, day.key, val);
+                                    }}
+                                    disabled={isLocked}
+                                    className={`w-14 h-9 rounded-lg border border-[var(--input-border)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                                      isWeekend ? 'bg-[var(--bg-tertiary)] opacity-60' : 'bg-[var(--input-bg)]'
+                                    }`}
+                                  />
+                                </td>
+                              );
+                            })}
 
                             {/* Row Total */}
                             <td className="p-3 text-center">

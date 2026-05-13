@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, FolderKanban, Target, Clock, Loader2 } from 'lucide-react';
+import { Search, FolderKanban, Target, Clock, Loader2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { timesheetAPI } from '@/services/api';
@@ -17,40 +17,47 @@ interface AssignedProject {
   startDate?: string;
   endDate?: string;
   role?: string;
-  assignedEmployees: string[];
 }
 
 export default function MyProjects() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<AssignedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
+    let cancelled = false;
     async function fetchAssigned() {
       setIsLoading(true);
+      setError(null);
       try {
         const res = await timesheetAPI.getAssignedProjects();
+        if (cancelled) return;
         const raw = res.data.data || [];
+        // API now returns FLATTENED project objects with assignment_role
         setProjects(raw.map((p: any) => ({
           id: p.id,
-          name: p.name,
-          code: p.project_code || p.code || '',
+          name: p.name || '',
+          code: p.project_code || '',
           color: p.color || '#6366f1',
           status: p.status || 'active',
           description: p.description || '',
           startDate: p.start_date || '',
           endDate: p.end_date || '',
           role: p.assignment_role || '',
-          assignedEmployees: (p.assignments || []).map((a: any) => a.user_id),
         })));
-      } catch {
-        setProjects([]);
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err.response?.data?.message || 'Failed to load projects');
+          setProjects([]);
+        }
       }
-      setIsLoading(false);
+      if (!cancelled) setIsLoading(false);
     }
     fetchAssigned();
+    return () => { cancelled = true; };
   }, []);
 
   const filtered = projects.filter((p) => {
@@ -65,6 +72,21 @@ export default function MyProjects() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <AlertTriangle className="w-10 h-10 text-danger-500" />
+        <p className="text-sm text-[var(--text-secondary)]">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }

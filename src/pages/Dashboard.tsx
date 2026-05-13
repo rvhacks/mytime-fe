@@ -239,7 +239,7 @@ export default function Dashboard() {
 
       {/* Billable Ratio Chart */}
       {billablePie.length > 0 && billablePie.some((d) => d.value > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-2' : ''} gap-6`}>
           <motion.div variants={itemVariants}>
             <Card>
               <CardHeader>
@@ -301,34 +301,36 @@ export default function Dashboard() {
             </Card>
           </motion.div>
 
-          {/* Quick Stats */}
-          <motion.div variants={itemVariants}>
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle className="text-base">Organization Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
-                    <p className="text-2xl font-bold text-brand-500">{stats?.totalEmployees || 0}</p>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Active Employees</p>
+          {/* Organization Overview — ADMIN ONLY */}
+          {isAdmin && (
+            <motion.div variants={itemVariants}>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="text-base">Organization Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                      <p className="text-2xl font-bold text-brand-500">{stats?.totalEmployees || 0}</p>
+                      <p className="text-xs text-[var(--text-tertiary)] mt-1">Active Employees</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                      <p className="text-2xl font-bold text-accent-500">{stats?.activeProjects || 0}</p>
+                      <p className="text-xs text-[var(--text-tertiary)] mt-1">Active Projects</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                      <p className="text-2xl font-bold text-purple-500">{Math.round(stats?.totalHoursLogged || 0)}</p>
+                      <p className="text-xs text-[var(--text-tertiary)] mt-1">Hours This Month</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
+                      <p className="text-2xl font-bold text-warning-500">{stats?.pendingApprovals || 0}</p>
+                      <p className="text-xs text-[var(--text-tertiary)] mt-1">Pending Approvals</p>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
-                    <p className="text-2xl font-bold text-accent-500">{stats?.activeProjects || 0}</p>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Active Projects</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
-                    <p className="text-2xl font-bold text-purple-500">{Math.round(stats?.totalHoursLogged || 0)}</p>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Hours This Month</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[var(--bg-tertiary)] text-center">
-                    <p className="text-2xl font-bold text-warning-500">{stats?.pendingApprovals || 0}</p>
-                    <p className="text-xs text-[var(--text-tertiary)] mt-1">Pending Approvals</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
         </div>
       )}
 
