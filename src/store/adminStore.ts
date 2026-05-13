@@ -1,24 +1,28 @@
 import { create } from 'zustand';
-import type { Project, ApprovalItem, TimesheetRow } from '@/types';
-import { projectAPI, timesheetAPI } from '@/services/api';
+import type { Project, ApprovalItem, TimesheetRow, DashboardStats } from '@/types';
+import { projectAPI, timesheetAPI, dashboardAPI } from '@/services/api';
 
 interface AdminStore {
   projects: Project[];
   approvals: ApprovalItem[];
+  dashboardStats: DashboardStats | null;
   isLoading: boolean;
 
   fetchProjects: () => Promise<void>;
-  addProject: (project: Omit<Project, 'id' | 'milestones'>) => Promise<void>;
+  addProject: (project: Omit<Project, 'id'>) => Promise<void>;
   updateProject: (id: string, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 
   fetchApprovals: () => Promise<void>;
   approveTimesheet: (id: string, comments?: string) => Promise<void>;
   rejectTimesheet: (id: string, comments: string) => Promise<void>;
+
+  fetchDashboardStats: () => Promise<void>;
 }
 
 /** Map backend project → frontend Project shape */
 function mapProject(p: any): Project {
+  const assignments = p.assignments || [];
   return {
     id: p.id,
     name: p.name,
@@ -28,16 +32,7 @@ function mapProject(p: any): Project {
     startDate: p.start_date || '',
     endDate: p.end_date || '',
     status: p.status,
-    assignedEmployees: [],
-    reportingManagers: p.reporting_managers || [],
-    milestones: (p.milestones || []).map((m: any) => ({
-      id: m.id,
-      name: m.name,
-      description: m.description || '',
-      projectId: m.project_id,
-      role: m.role || undefined,
-      status: m.status,
-    })),
+    assignedEmployees: assignments.map((a: any) => a.user_id),
   };
 }
 
@@ -80,13 +75,21 @@ function mapApproval(ts: any): ApprovalItem {
 export const useAdminStore = create<AdminStore>((set) => ({
   projects: [],
   approvals: [],
+  dashboardStats: null,
   isLoading: false,
+
+  fetchDashboardStats: async () => {
+    try {
+      const res = await dashboardAPI.getStats();
+      set({ dashboardStats: res.data.data });
+    } catch { /* silent */ }
+  },
 
   fetchProjects: async () => {
     set({ isLoading: true });
     try {
-      const res = await projectAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      const res = await projectAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ projects: (Array.isArray(rows) ? rows : []).map(mapProject), isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -104,10 +107,9 @@ export const useAdminStore = create<AdminStore>((set) => ({
         startDate: projectData.startDate,
         endDate: projectData.endDate,
         status: projectData.status,
-        reportingManagers: projectData.reportingManagers,
       });
-      const res = await projectAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      const res = await projectAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ projects: (Array.isArray(rows) ? rows : []).map(mapProject), isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -124,10 +126,9 @@ export const useAdminStore = create<AdminStore>((set) => ({
         startDate: data.startDate,
         endDate: data.endDate,
         status: data.status,
-        reportingManagers: data.reportingManagers,
       });
-      const res = await projectAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      const res = await projectAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ projects: (Array.isArray(rows) ? rows : []).map(mapProject), isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -148,7 +149,7 @@ export const useAdminStore = create<AdminStore>((set) => ({
     set({ isLoading: true });
     try {
       const res = await timesheetAPI.getPendingApprovals();
-      const rows = res.data.data.rows || res.data.data;
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ approvals: (Array.isArray(rows) ? rows : []).map(mapApproval), isLoading: false });
     } catch {
       set({ isLoading: false });

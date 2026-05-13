@@ -1,53 +1,78 @@
 import { create } from 'zustand';
 import type { Notification } from '@/types';
-
-// Inline initial notifications (no backend endpoint for this yet)
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: 'n1', title: 'Timesheet Approved', message: 'Your timesheet for Apr 13-19 has been approved.', type: 'success', read: false, createdAt: '2026-04-20T09:00:00Z' },
-  { id: 'n2', title: 'Submission Reminder', message: "Don't forget to submit your timesheet by Friday 5:00 PM.", type: 'warning', read: false, createdAt: '2026-04-24T08:00:00Z' },
-  { id: 'n3', title: 'New Project Assignment', message: 'You have been assigned to Phoenix Platform.', type: 'info', read: true, createdAt: '2026-04-15T10:00:00Z' },
-];
+import { notificationAPI } from '@/services/api';
 
 interface NotificationStore {
   notifications: Notification[];
   unreadCount: number;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) => void;
+  isLoading: boolean;
+
+  fetchNotifications: () => Promise<void>;
+  fetchUnreadCount: () => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+}
+
+function mapNotification(n: any): Notification {
+  return {
+    id: n.id,
+    title: n.title,
+    message: n.message,
+    type: n.type || 'info',
+    category: n.category || 'general',
+    read: n.read || false,
+    createdAt: n.created_at || n.createdAt || '',
+  };
 }
 
 export const useNotificationStore = create<NotificationStore>((set) => ({
-  notifications: INITIAL_NOTIFICATIONS,
-  unreadCount: INITIAL_NOTIFICATIONS.filter((n) => !n.read).length,
+  notifications: [],
+  unreadCount: 0,
+  isLoading: false,
 
-  markAsRead: (id) =>
-    set((state) => {
-      const notifications = state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      );
-      return {
-        notifications,
-        unreadCount: notifications.filter((n) => !n.read).length,
-      };
-    }),
+  fetchNotifications: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await notificationAPI.getAll({ limit: 50 });
+      const rows = res.data.data?.rows || [];
+      set({
+        notifications: rows.map(mapNotification),
+        isLoading: false,
+      });
+    } catch {
+      set({ isLoading: false });
+    }
+  },
 
-  markAllAsRead: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, read: true })),
-      unreadCount: 0,
-    })),
+  fetchUnreadCount: async () => {
+    try {
+      const res = await notificationAPI.getUnreadCount();
+      set({ unreadCount: res.data.data?.count || 0 });
+    } catch { /* silent */ }
+  },
 
-  addNotification: (notification) =>
-    set((state) => {
-      const newNotification: Notification = {
-        ...notification,
-        id: `n${Date.now()}`,
-        read: false,
-        createdAt: new Date().toISOString(),
-      };
-      return {
-        notifications: [newNotification, ...state.notifications],
-        unreadCount: state.unreadCount + 1,
-      };
-    }),
+  markAsRead: async (id) => {
+    try {
+      await notificationAPI.markAsRead(id);
+      set((state) => {
+        const notifications = state.notifications.map((n) =>
+          n.id === id ? { ...n, read: true } : n
+        );
+        return {
+          notifications,
+          unreadCount: notifications.filter((n) => !n.read).length,
+        };
+      });
+    } catch { /* silent */ }
+  },
+
+  markAllAsRead: async () => {
+    try {
+      await notificationAPI.markAllAsRead();
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, read: true })),
+        unreadCount: 0,
+      }));
+    } catch { /* silent */ }
+  },
 }));

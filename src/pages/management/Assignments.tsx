@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Link2, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +19,7 @@ const ROLE_LABELS: Record<ProjectRole, string> = {
   PM: 'Project Manager', QA: 'QA Engineer', BA: 'Business Analyst',
 };
 
-const emptyForm = { employeeId: '', projectId: '', rmId: '', role: '' as string };
+const emptyForm = { employeeId: '', projectId: '', role: '' as string };
 
 export default function Assignments() {
   const { employees, assignments, addAssignment, deleteAssignment, fetchEmployees, fetchAssignments, isLoading } = useManagementStore();
@@ -32,35 +32,19 @@ export default function Assignments() {
   const [form, setForm] = useState(emptyForm);
 
   const updateField = (field: string, value: string) => {
-    setForm((f) => {
-      const next = { ...f, [field]: value };
-      // Reset RM when project changes
-      if (field === 'projectId') next.rmId = '';
-      return next;
-    });
+    setForm((f) => ({ ...f, [field]: value }));
   };
-
-  // Derive available RMs from the selected project's reportingManagers
-  const availableRMs = useMemo(() => {
-    if (!form.projectId) return [];
-    const project = projects.find((p) => p.id === form.projectId);
-    if (!project || !project.reportingManagers) return [];
-    return employees.filter((e) => project.reportingManagers.includes(e.id));
-  }, [form.projectId, projects, employees]);
 
   const handleAdd = async () => {
     if (!form.employeeId) { toast.error('Select an employee'); return; }
     if (!form.projectId) { toast.error('Select a project'); return; }
-    if (!form.rmId) { toast.error('Select a reporting manager'); return; }
     if (!form.role) { toast.error('Select a role'); return; }
-    // Prevent duplicate
     if (assignments.some((a) => a.employeeId === form.employeeId && a.projectId === form.projectId)) {
       toast.error('This employee is already assigned to this project'); return;
     }
     await addAssignment({
       employeeId: form.employeeId,
       projectId: form.projectId,
-      rmId: form.rmId,
       role: form.role as ProjectRole,
     });
     setForm(emptyForm); setShowAdd(false);
@@ -117,7 +101,6 @@ export default function Assignments() {
                 <tr className="border-b border-[var(--border-secondary)]">
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Employee</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Project</th>
-                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Reporting Manager</th>
                   <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Role</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Assigned</th>
                   <th className="text-right text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Actions</th>
@@ -136,14 +119,13 @@ export default function Assignments() {
                         </div>
                       </td>
                       <td className="p-4 text-sm text-[var(--text-secondary)]">{getProjName(a.projectId)}</td>
-                      <td className="p-4 text-sm text-[var(--text-secondary)]">{getEmpName(a.rmId)}</td>
                       <td className="p-4 text-center">
                         <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400">
                           {a.role}
                         </span>
                       </td>
                       <td className="p-4 text-sm text-[var(--text-secondary)]">
-                        {new Date(a.assignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {a.assignedAt && a.assignedAt !== 'Invalid ' ? new Date(a.assignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                       </td>
                       <td className="p-4">
                         <div className="flex justify-end">
@@ -167,12 +149,12 @@ export default function Assignments() {
         </CardContent>
       </Card>
 
-      {/* Add Dialog */}
+      {/* Add Dialog — No RM field */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Employee to Project</DialogTitle>
-            <DialogDescription>RM dropdown is filtered based on the selected project</DialogDescription>
+            <DialogDescription>Select an employee, project, and role</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -189,15 +171,6 @@ export default function Assignments() {
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
                 <option value="">Select project</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <Label>Reporting Manager *</Label>
-              <select value={form.rmId} onChange={(e) => updateField('rmId', e.target.value)}
-                disabled={!form.projectId || availableRMs.length === 0}
-                className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50">
-                <option value="">{!form.projectId ? 'Select a project first' : availableRMs.length === 0 ? 'No RMs assigned to this project' : 'Select RM'}</option>
-                {availableRMs.map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
               </select>
             </div>
             <div>

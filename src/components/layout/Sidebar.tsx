@@ -38,9 +38,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'manager', 'admin'] },
-  { path: '/timesheet', label: 'Timesheet', icon: Clock, roles: ['employee', 'manager', 'admin'] },
+  { path: '/timesheet', label: 'Timesheet', icon: Clock, roles: ['employee', 'manager'] },
   { path: '/reports', label: 'Reports', icon: BarChart3, roles: ['employee', 'manager', 'admin'] },
-  { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee', 'manager', 'admin'] },
+  { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee', 'manager'] },
   { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['manager', 'admin'] },
   { path: '/profile', label: 'Profile', icon: User, roles: ['employee', 'manager', 'admin'] },
 ];

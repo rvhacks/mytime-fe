@@ -30,6 +30,7 @@ interface ManagementStore {
   fetchEmployees: () => Promise<void>;
   addEmployee: (data: Omit<Employee, 'id' | 'generatedPassword' | 'status' | 'createdAt'>) => Promise<Employee>;
   updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
+  resetEmployeePassword: (id: string) => Promise<string>;
   deleteEmployee: (id: string) => Promise<void>;
 
   // Assignments
@@ -46,27 +47,27 @@ function mapDesignation(d: any): Designation {
 function mapEmployee(u: any): Employee {
   return {
     id: u.id,
-    firstName: u.first_name,
-    lastName: u.last_name,
+    firstName: u.first_name || u.firstName || '',
+    lastName: u.last_name || u.lastName || '',
     email: u.email,
     mobile: u.mobile || '',
     dob: u.dob || '',
-    designationId: u.designation_id || '',
-    joiningDate: u.joining_date || '',
-    generatedPassword: '', // server doesn't send this back
+    designationId: u.designation_id || u.designationId || '',
+    joiningDate: u.joining_date || u.joiningDate || '',
+    generatedPassword: '',
+    reportingManagerId: u.reporting_manager_id || u.reportingManagerId || '',
     status: u.status || 'active',
-    createdAt: u.created_at?.slice(0, 10) || '',
+    createdAt: (u.created_at || u.createdAt || '').toString().slice(0, 10),
   };
 }
 
 function mapAssignment(a: any): ProjectAssignment {
   return {
     id: a.id,
-    employeeId: a.user_id,
-    projectId: a.project_id,
-    rmId: a.rm_id,
+    employeeId: a.user_id || a.employeeId,
+    projectId: a.project_id || a.projectId,
     role: a.role,
-    assignedAt: a.created_at?.slice(0, 10) || '',
+    assignedAt: (a.created_at || a.createdAt || a.assignedAt || '').toString().slice(0, 10),
   };
 }
 
@@ -80,8 +81,9 @@ export const useManagementStore = create<ManagementStore>((set) => ({
   fetchDesignations: async () => {
     set({ isLoading: true });
     try {
-      const res = await designationAPI.getAll();
-      set({ designations: (res.data.data || []).map(mapDesignation), isLoading: false });
+      const res = await designationAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
+      set({ designations: (Array.isArray(rows) ? rows : []).map(mapDesignation), isLoading: false });
     } catch { set({ isLoading: false }); }
   },
 
@@ -89,8 +91,9 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await designationAPI.create(name);
-      const res = await designationAPI.getAll();
-      set({ designations: (res.data.data || []).map(mapDesignation), isLoading: false });
+      const res = await designationAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
+      set({ designations: (Array.isArray(rows) ? rows : []).map(mapDesignation), isLoading: false });
     } catch { set({ isLoading: false }); }
   },
 
@@ -98,8 +101,9 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await designationAPI.update(id, name);
-      const res = await designationAPI.getAll();
-      set({ designations: (res.data.data || []).map(mapDesignation), isLoading: false });
+      const res = await designationAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
+      set({ designations: (Array.isArray(rows) ? rows : []).map(mapDesignation), isLoading: false });
     } catch { set({ isLoading: false }); }
   },
 
@@ -115,8 +119,8 @@ export const useManagementStore = create<ManagementStore>((set) => ({
   fetchEmployees: async () => {
     set({ isLoading: true });
     try {
-      const res = await employeeAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      const res = await employeeAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ employees: (Array.isArray(rows) ? rows : []).map(mapEmployee), isLoading: false });
     } catch { set({ isLoading: false }); }
   },
@@ -128,8 +132,8 @@ export const useManagementStore = create<ManagementStore>((set) => ({
       const pw = res.data.data.generatedPassword || generatePassword(data.firstName, data.mobile, data.dob);
       const newEmp = mapEmployee(res.data.data.user);
       newEmp.generatedPassword = pw;
-      const listRes = await employeeAPI.getAll();
-      const rows = listRes.data.data.rows || listRes.data.data;
+      const listRes = await employeeAPI.getAll({ limit: 100 });
+      const rows = listRes.data.data?.rows || listRes.data.data || [];
       set({ employees: (Array.isArray(rows) ? rows : []).map(mapEmployee), isLoading: false });
       return newEmp;
     } catch {
@@ -142,10 +146,19 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await employeeAPI.update(id, data);
-      const res = await employeeAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      const res = await employeeAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ employees: (Array.isArray(rows) ? rows : []).map(mapEmployee), isLoading: false });
     } catch { set({ isLoading: false }); }
+  },
+
+  resetEmployeePassword: async (id) => {
+    try {
+      const res = await employeeAPI.resetPassword(id);
+      return res.data.data.generatedPassword;
+    } catch {
+      throw new Error('Failed to reset password');
+    }
   },
 
   deleteEmployee: async (id) => {
@@ -160,8 +173,8 @@ export const useManagementStore = create<ManagementStore>((set) => ({
   fetchAssignments: async () => {
     set({ isLoading: true });
     try {
-      const res = await assignmentAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      const res = await assignmentAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ assignments: (Array.isArray(rows) ? rows : []).map(mapAssignment), isLoading: false });
     } catch { set({ isLoading: false }); }
   },
@@ -169,9 +182,9 @@ export const useManagementStore = create<ManagementStore>((set) => ({
   addAssignment: async (data) => {
     set({ isLoading: true });
     try {
-      await assignmentAPI.create({ userId: data.employeeId, projectId: data.projectId, rmId: data.rmId, role: data.role });
-      const res = await assignmentAPI.getAll();
-      const rows = res.data.data.rows || res.data.data;
+      await assignmentAPI.create({ userId: data.employeeId, projectId: data.projectId, role: data.role });
+      const res = await assignmentAPI.getAll({ limit: 100 });
+      const rows = res.data.data?.rows || res.data.data || [];
       set({ assignments: (Array.isArray(rows) ? rows : []).map(mapAssignment), isLoading: false });
     } catch { set({ isLoading: false }); }
   },

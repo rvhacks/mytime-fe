@@ -27,7 +27,7 @@ function getGreeting(): { text: string; emoji: string } {
 export function Topbar() {
   const { theme, toggleTheme } = useThemeStore();
   const { user, logout } = useAuthStore();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications, fetchUnreadCount } = useNotificationStore();
   const navigate = useNavigate();
   const greeting = getGreeting();
 
@@ -44,6 +44,11 @@ export function Topbar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
 
   const handleLogout = () => {
     logout();

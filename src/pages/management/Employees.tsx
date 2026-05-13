@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit3, Trash2, Users, Search, Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit3, Trash2, Users, Search, Copy, Check, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +13,11 @@ import {
 } from '@/components/ui/dialog';
 
 const emptyForm = {
-  firstName: '', lastName: '', email: '', mobile: '', dob: '', designationId: '', joiningDate: '',
+  firstName: '', lastName: '', email: '', mobile: '', dob: '', designationId: '', joiningDate: '', reportingManagerId: '',
 };
 
 export default function Employees() {
-  const { employees, designations, addEmployee, updateEmployee, deleteEmployee, fetchEmployees, fetchDesignations, isLoading } = useManagementStore();
+  const { employees, designations, addEmployee, updateEmployee, deleteEmployee, resetEmployeePassword, fetchEmployees, fetchDesignations, isLoading } = useManagementStore();
 
   useEffect(() => { fetchEmployees(); fetchDesignations(); }, []);
   const [showAdd, setShowAdd] = useState(false);
@@ -68,6 +68,7 @@ export default function Employees() {
       dob: form.dob,
       designationId: form.designationId,
       joiningDate: form.joiningDate,
+      reportingManagerId: form.reportingManagerId || undefined,
     });
     setGeneratedPw(newEmp.generatedPassword);
     setForm(emptyForm);
@@ -80,7 +81,6 @@ export default function Employees() {
     if (!editId) return;
     const err = validate();
     if (err) { toast.error(err); return; }
-    const pw = generatePassword(form.firstName, form.mobile, form.dob);
     await updateEmployee(editId, {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
@@ -89,10 +89,21 @@ export default function Employees() {
       dob: form.dob,
       designationId: form.designationId,
       joiningDate: form.joiningDate,
-      generatedPassword: pw,
+      reportingManagerId: form.reportingManagerId || null,
     });
     setForm(emptyForm); setEditId(null);
     toast.success('Employee updated');
+  };
+
+  const handleResetPassword = async (id: string) => {
+    try {
+      const pw = await resetEmployeePassword(id);
+      setGeneratedPw(pw);
+      setShowPwDialog(true);
+      toast.success('Password reset successfully');
+    } catch {
+      toast.error('Failed to reset password');
+    }
   };
 
   const openEdit = (id: string) => {
@@ -101,6 +112,7 @@ export default function Employees() {
     setForm({
       firstName: e.firstName, lastName: e.lastName, email: e.email,
       mobile: e.mobile, dob: e.dob, designationId: e.designationId, joiningDate: e.joiningDate,
+      reportingManagerId: e.reportingManagerId || '',
     });
     setEditId(id);
   };
@@ -156,7 +168,17 @@ export default function Employees() {
         <Label>Joining Date *</Label>
         <Input type="date" value={form.joiningDate} onChange={(e) => updateField('joiningDate', e.target.value)} />
       </div>
-      {previewPw && (
+      <div>
+        <Label>Reporting Manager <span className="text-[var(--text-tertiary)]">(optional)</span></Label>
+        <select
+          value={form.reportingManagerId} onChange={(e) => updateField('reportingManagerId', e.target.value)}
+          className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        >
+          <option value="">No Reporting Manager</option>
+          {employees.filter((e) => e.id !== editId).map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
+        </select>
+      </div>
+      {!editId && previewPw && (
         <div>
           <Label>Auto-generated Password</Label>
           <div className="flex items-center gap-2 h-10 px-3 rounded-xl border border-dashed border-brand-300 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10">
@@ -234,10 +256,13 @@ export default function Employees() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                          <button onClick={() => openEdit(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors" title="Edit">
                             <Edit3 className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteId(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-colors">
+                          <button onClick={() => handleResetPassword(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-warning-500 hover:bg-warning-50 dark:hover:bg-warning-900/20 transition-colors" title="Reset Password">
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setDeleteId(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-colors" title="Delete">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

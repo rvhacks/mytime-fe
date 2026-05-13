@@ -18,7 +18,7 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'
 
 const emptyForm = {
   projectId: '', name: '', code: '', description: '', startDate: '', endDate: '',
-  status: 'active' as 'active' | 'completed' | 'on-hold', color: '#6366f1', rmIds: [] as string[],
+  status: 'active' as 'active' | 'completed' | 'on-hold', color: '#6366f1',
 };
 
 export default function ManageProjects() {
@@ -38,19 +38,10 @@ export default function ManageProjects() {
 
   const updateField = (field: string, value: any) => setForm((f) => ({ ...f, [field]: value }));
 
-  const toggleRm = (empId: string) => {
-    setForm((f) => ({
-      ...f,
-      rmIds: f.rmIds.includes(empId) ? f.rmIds.filter((id) => id !== empId) : [...f.rmIds, empId],
-    }));
-  };
+
 
   const validate = (): string | null => {
     if (!form.name.trim()) return 'Project name is required';
-    if (!form.code.trim()) return 'Project code is required';
-    if (!form.startDate) return 'Start date is required';
-    if (!form.endDate) return 'End date is required';
-    if (form.startDate > form.endDate) return 'End date must be after start date';
     return null;
   };
 
@@ -67,7 +58,6 @@ export default function ManageProjects() {
       endDate: form.endDate,
       status: form.status,
       assignedEmployees: [],
-      reportingManagers: form.rmIds,
     });
     setForm(emptyForm); setShowAdd(false);
     toast.success('Project created');
@@ -85,7 +75,6 @@ export default function ManageProjects() {
       startDate: form.startDate,
       endDate: form.endDate,
       status: form.status,
-      reportingManagers: form.rmIds,
     });
     setForm(emptyForm); setEditId(null);
     toast.success('Project updated');
@@ -97,7 +86,7 @@ export default function ManageProjects() {
     setForm({
       projectId: p.id, name: p.name, code: p.code, description: p.description || '',
       startDate: p.startDate || '', endDate: p.endDate || '', status: p.status,
-      color: p.color, rmIds: p.reportingManagers || [],
+      color: p.color,
     });
     setEditId(id);
   };
@@ -106,7 +95,7 @@ export default function ManageProjects() {
     if (!deleteId) return;
     await deleteProject(deleteId);
     setDeleteId(null);
-    toast.success('Project deleted');
+    toast.success('Project archived');
   };
 
   const formFields = (
@@ -163,26 +152,6 @@ export default function ManageProjects() {
           ))}
         </div>
       </div>
-      <div>
-        <Label>Reporting Managers (multi-select)</Label>
-        <div className="flex flex-wrap gap-2 mt-1 p-3 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] min-h-[44px]">
-          {employees.length === 0 && <span className="text-xs text-[var(--text-tertiary)]">No employees available</span>}
-          {employees.map((emp) => {
-            const selected = form.rmIds.includes(emp.id);
-            return (
-              <button key={emp.id} onClick={() => toggleRm(emp.id)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  selected
-                    ? 'bg-brand-500 text-white'
-                    : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]/80'
-                }`}
-              >
-                {emp.firstName} {emp.lastName}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 
@@ -221,7 +190,7 @@ export default function ManageProjects() {
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Code</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Duration</th>
                   <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Status</th>
-                  <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">RMs</th>
+                  <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Team</th>
                   <th className="text-right text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Actions</th>
                 </tr>
               </thead>
@@ -247,7 +216,7 @@ export default function ManageProjects() {
                       </td>
                       <td className="p-4 text-center"><StatusBadge status={p.status} /></td>
                       <td className="p-4 text-center text-sm text-[var(--text-secondary)]">
-                        {(p.reportingManagers || []).length}
+                        {(p.assignedEmployees || []).length}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-1">
@@ -308,12 +277,12 @@ export default function ManageProjects() {
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Project</DialogTitle>
-            <DialogDescription>This will permanently delete the project. This cannot be undone.</DialogDescription>
+            <DialogTitle>Archive Project</DialogTitle>
+            <DialogDescription>This project will be archived. All timesheets, reports, and assignments will be preserved.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="destructive" onClick={handleDelete}>Archive</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

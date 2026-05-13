@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useAuthStore } from '@/store/authStore';
+import { useAdminStore } from '@/store/adminStore';
 
 const RECENT_ACTIVITY = [
   { id: 'act1', action: 'Timesheet Submitted', description: 'Weekly timesheet for Apr 13-19 submitted', timestamp: '2026-04-19T17:00:00Z', icon: 'send' },
@@ -89,48 +91,56 @@ const BILLABLE_PIE = [
 
 export default function Dashboard() {
   const { user } = useAuthStore();
+  const { dashboardStats, fetchDashboardStats } = useAdminStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
+
+  const stats = dashboardStats;
+  const billableRate = stats && stats.totalHoursLogged > 0 ? Math.round((stats.billableHours / stats.totalHoursLogged) * 100) : 0;
 
   const summaryCards = [
     {
       title: 'Hours Logged',
-      value: '36',
-      subtitle: 'of 40 expected',
+      value: stats ? String(Math.round(stats.totalHoursLogged)) : '—',
+      subtitle: `${stats?.totalEmployees || 0} active employees`,
       icon: <Clock className="w-5 h-5" />,
       color: 'text-brand-500',
       bg: 'bg-brand-50 dark:bg-brand-900/20',
-      trend: '+4h from yesterday',
+      trend: `${stats?.activeProjects || 0} active projects`,
       trendUp: true,
     },
     {
       title: 'Billable Hours',
-      value: '23',
-      subtitle: `${Math.round((23 / 36) * 100)}% billable rate`,
+      value: stats ? String(Math.round(stats.billableHours)) : '—',
+      subtitle: `${billableRate}% billable rate`,
       icon: <DollarSign className="w-5 h-5" />,
       color: 'text-accent-500',
       bg: 'bg-accent-50 dark:bg-accent-900/20',
-      trend: 'On track',
-      trendUp: true,
+      trend: billableRate >= 70 ? 'On track' : 'Needs attention',
+      trendUp: billableRate >= 70,
     },
     {
       title: 'Non-Billable',
-      value: '13',
+      value: stats ? String(Math.round(stats.nonBillableHours)) : '—',
       subtitle: 'Internal + meetings',
       icon: <Receipt className="w-5 h-5" />,
       color: 'text-warning-500',
       bg: 'bg-warning-50 dark:bg-warning-500/10',
-      trend: '+2h from last week',
+      trend: `${stats?.pendingApprovals || 0} pending approvals`,
       trendUp: false,
     },
     {
       title: 'Approval Rate',
-      value: '92%',
+      value: stats ? `${stats.approvalRate}%` : '—',
       subtitle: 'Last 30 days',
       icon: <CheckCircle2 className="w-5 h-5" />,
       color: 'text-purple-500',
       bg: 'bg-purple-50 dark:bg-purple-900/20',
-      trend: '+5% improvement',
-      trendUp: true,
+      trend: stats && stats.approvalRate >= 80 ? 'Good standing' : 'Needs improvement',
+      trendUp: (stats?.approvalRate || 0) >= 80,
     },
   ];
 

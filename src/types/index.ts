@@ -16,6 +16,8 @@ export interface User {
   department: string;
   avatar?: string;
   joinDate: string;
+  reportingManagerId?: string;
+  reportingManagerName?: string;
 }
 
 export interface Designation {
@@ -34,6 +36,7 @@ export interface Employee {
   designationId: string;
   joiningDate: string;
   generatedPassword: string;
+  reportingManagerId?: string;
   status: 'active' | 'inactive';
   createdAt: string;
 }
@@ -48,24 +51,19 @@ export interface Project {
   endDate?: string;
   status: 'active' | 'completed' | 'on-hold';
   assignedEmployees: string[];
-  reportingManagers: string[];
-  milestones: Milestone[];
 }
 
 export interface Milestone {
   id: string;
   name: string;
   description?: string;
-  projectId: string;
-  role?: ProjectRole;
-  status: 'pending' | 'in-progress' | 'completed';
+  role: ProjectRole;
 }
 
 export interface ProjectAssignment {
   id: string;
   employeeId: string;
   projectId: string;
-  rmId: string;
   role: ProjectRole;
   assignedAt: string;
 }
@@ -98,6 +96,7 @@ export interface Notification {
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
+  category: string;
   read: boolean;
   createdAt: string;
 }
@@ -152,3 +151,19 @@ export interface ChartDataPoint {
   color?: string;
 }
 
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface DashboardStats {
+  totalEmployees: number;
+  activeProjects: number;
+  totalHoursLogged: number;
+  billableHours: number;
+  nonBillableHours: number;
+  approvalRate: number;
+  pendingApprovals: number;
+}
