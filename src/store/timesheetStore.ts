@@ -219,8 +219,6 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       const editableRows = ts.rows.filter((r) =>
         r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status)
       );
-      // Identify local-only rows: no projectId (user is still filling them in)
-      const localOnlyRows = ts.rows.filter((r) => !r.projectId);
 
       const entries = editableRows.map((r) => ({
         projectId: r.projectId,
@@ -240,15 +238,34 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         weekEndDate: ts.weekEndDate,
         entries,
       });
-      // Merge API response with local-only rows the user hasn't completed yet
-      const mapped = mapTimesheet(res.data.data);
-      const mergedRows = [...mapped.rows, ...localOnlyRows];
-      const merged = { ...mapped, rows: mergedRows };
-      // Hash only the API-saved rows (not local-only) to prevent loop
-      const savedHash = JSON.stringify(mapped.rows
-        .filter(r => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status))
+
+      // Silently sync IDs without replacing row data (prevents UI disruption)
+      const apiData = res.data.data;
+      const apiEntries = apiData?.entries || [];
+      const currentTs = get().currentTimesheet;
+      const updatedRows = currentTs.rows.map((row) => {
+        if (!row.projectId || !['draft', 'recalled', 'rejected'].includes(row.status)) return row;
+        // Match by projectId + hours to find the corresponding API entry
+        const match = apiEntries.find((ae: any) =>
+          (ae.project_id === row.projectId || ae.project?.id === row.projectId) &&
+          Number(ae.hours_mon) === row.hours.mon && Number(ae.hours_tue) === row.hours.tue
+        );
+        if (match) return { ...row, id: match.id };
+        return row;
+      });
+      const savedHash = JSON.stringify(updatedRows
+        .filter(r => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status) && Object.values(r.hours).some(h => h > 0))
         .map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
-      set({ currentTimesheet: merged, isSaving: false, _lastSavedHash: savedHash });
+      set({
+        currentTimesheet: {
+          ...currentTs,
+          id: apiData?.id || currentTs.id,
+          userId: apiData?.user_id || currentTs.userId,
+          rows: updatedRows,
+        },
+        isSaving: false,
+        _lastSavedHash: savedHash,
+      });
     } catch {
       set({ isSaving: false });
     }

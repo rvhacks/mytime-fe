@@ -214,11 +214,19 @@ export default function Timesheet() {
 
   // Per-entry submit: submit all draft rows that have a project selected
   const handleSubmitAll = async () => {
+    const ts = useTimesheetStore.getState().currentTimesheet;
+    const drafts = ts.rows.filter((r) => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status));
+    // Validate milestone is selected for all draft entries
+    const missingMilestone = drafts.filter((r) => !r.milestoneId);
+    if (missingMilestone.length > 0) {
+      toast.error('Please select a milestone for all entries before submitting');
+      return;
+    }
     await saveDraft();
     // Wait a tick for state to update with saved IDs
     await new Promise(r => setTimeout(r, 300));
-    const ts = useTimesheetStore.getState().currentTimesheet;
-    const draftIds = ts.rows
+    const updatedTs = useTimesheetStore.getState().currentTimesheet;
+    const draftIds = updatedTs.rows
       .filter((r) => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status))
       .map((r) => r.id);
     if (draftIds.length === 0) {
@@ -498,6 +506,15 @@ export default function Timesheet() {
                                     value={row.hours[day.key] || ''}
                                     onChange={(e) => {
                                       const val = parseFloat(e.target.value) || 0;
+                                      // Calculate total hours for this day across ALL rows (excluding current row)
+                                      const otherRowsTotal = rows.reduce((sum, r) => {
+                                        if (r.id === row.id) return sum;
+                                        return sum + (r.hours[day.key] || 0);
+                                      }, 0);
+                                      if (otherRowsTotal + val > 24) {
+                                        toast.error(`Daily total cannot exceed 24 hours (${day.label})`, { id: `max24-${day.key}` });
+                                        return;
+                                      }
                                       if (isWeekend && val > 0) toast('Weekend hours logged.', { icon: '⚠️', id: `we-${row.id}-${day.key}` });
                                       updateRowHours(row.id, day.key, val);
                                     }}

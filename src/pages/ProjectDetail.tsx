@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -17,10 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Avatar } from '@/components/ui/avatar';
-import { useAdminStore } from '@/store/adminStore';
-import { useTimesheetStore } from '@/store/timesheetStore';
-import { useManagementStore } from '@/store/managementStore';
-import { useEffect } from 'react';
+import { timesheetAPI } from '@/services/api';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -32,82 +29,81 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
+interface ProjectData {
+  id: string;
+  name: string;
+  project_code: string;
+  color: string;
+  status: string;
+  description?: string;
+  assignments: Array<{
+    id: string;
+    role: string;
+    user: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+    };
+  }>;
+  milestones?: Array<{
+    id: string;
+    name: string;
+    status: string;
+  }>;
+}
+
 export default function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, fetchProjects } = useAdminStore();
-  const { currentTimesheet, pastTimesheets } = useTimesheetStore();
-  const { employees, assignments, designations, fetchEmployees, fetchAssignments, fetchDesignations } = useManagementStore();
+
+  const [project, setProject] = useState<ProjectData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchProjects();
-    fetchEmployees();
-    fetchAssignments();
-    fetchDesignations();
-  }, []);
+    if (!projectId) return;
+    setIsLoading(true);
+    setError(false);
+    timesheetAPI.getProjectDetail(projectId)
+      .then((res) => {
+        setProject(res.data.data);
+      })
+      .catch(() => {
+        setError(true);
+      })
+      .finally(() => setIsLoading(false));
+  }, [projectId]);
 
-  const project = projects.find((p) => p.id === projectId);
-
-  // Team members assigned to this project
+  // Team members from project assignments
   const teamMembers = useMemo(() => {
-    if (!project) return [];
-    const assignedIds = assignments
-      .filter((a) => a.projectId === projectId)
-      .map((a) => a.employeeId);
-    return employees
-      .filter((e) => assignedIds.includes(e.id))
-      .map((e) => ({
-        id: e.id,
-        name: `${e.firstName} ${e.lastName}`,
-        email: e.email,
-        phone: e.mobile,
-        designation: designations.find((d) => d.id === e.designationId)?.name || '',
-        department: '',
-        status: e.status,
-        role: 'employee' as const,
-        hoursThisWeek: 0,
-        submissionStatus: 'pending' as const,
-      }));
-  }, [project, employees, assignments, designations, projectId]);
-
-  // Milestone stats
-  const milestoneStats = useMemo(() => {
-    if (!project) return { total: 0, completed: 0, inProgress: 0, pending: 0 };
-    const completed = project.milestones.filter((m) => m.status === 'completed').length;
-    const inProgress = project.milestones.filter((m) => m.status === 'in-progress').length;
-    const pending = project.milestones.filter((m) => m.status === 'pending').length;
-    return { total: project.milestones.length, completed, inProgress, pending };
+    if (!project?.assignments) return [];
+    return project.assignments.map((a) => ({
+      id: a.user.id,
+      name: `${a.user.first_name} ${a.user.last_name}`,
+      email: a.user.email,
+      role: a.role || 'Member',
+    }));
   }, [project]);
 
-  // Hours logged on this project (from current + past timesheets)
-  const hoursLogged = useMemo(() => {
-    if (!project) return 0;
-    const allTimesheets = [currentTimesheet, ...pastTimesheets];
-    return allTimesheets.reduce((total, ts) => {
-      return (
-        total +
-        ts.rows
-          .filter((r) => r.projectId === project.id)
-          .reduce((sum, r) => sum + Object.values(r.hours).reduce((a, b) => a + b, 0), 0)
-      );
-    }, 0);
-  }, [project, currentTimesheet, pastTimesheets]);
+  // Milestone stats
+  const milestones = project?.milestones || [];
+  const milestoneStats = useMemo(() => {
+    const completed = milestones.filter((m) => m.status === 'completed').length;
+    const inProgress = milestones.filter((m) => m.status === 'in-progress').length;
+    const pending = milestones.filter((m) => m.status === 'pending').length;
+    return { total: milestones.length, completed, inProgress, pending };
+  }, [milestones]);
 
-  // Billable hours on this project
-  const billableHours = useMemo(() => {
-    if (!project) return 0;
-    const allTimesheets = [currentTimesheet, ...pastTimesheets];
-    return allTimesheets.reduce((total, ts) => {
-      return (
-        total +
-        ts.rows
-          .filter((r) => r.projectId === project.id && r.billable)
-          .reduce((sum, r) => sum + Object.values(r.hours).reduce((a, b) => a + b, 0), 0)
-      );
-    }, 0);
-  }, [project, currentTimesheet, pastTimesheets]);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+      </div>
+    );
+  }
 
-  if (!project) {
+  if (error || !project) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <FolderKanban className="w-12 h-12 text-[var(--text-tertiary)]" />
@@ -152,12 +148,12 @@ export default function ProjectDetail() {
               className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg flex-shrink-0"
               style={{ backgroundColor: project.color, boxShadow: `0 8px 24px ${project.color}40` }}
             >
-              {project.code.slice(0, 2)}
+              {project.project_code.slice(0, 2)}
             </div>
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">{project.name}</h1>
               <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
-                Code: {project.code} · {project.assignedEmployees.length} team members
+                Code: {project.project_code} · {teamMembers.length} team members
               </p>
             </div>
           </div>
@@ -174,8 +170,8 @@ export default function ProjectDetail() {
                 <Clock className="w-5 h-5 text-brand-500" />
               </div>
               <div>
-                <p className="text-xl font-bold text-[var(--text-primary)]">{hoursLogged}h</p>
-                <p className="text-xs text-[var(--text-secondary)]">Hours Logged</p>
+                <p className="text-xl font-bold text-[var(--text-primary)]">{teamMembers.length}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Team Members</p>
               </div>
             </CardContent>
           </Card>
@@ -187,8 +183,8 @@ export default function ProjectDetail() {
                 <Target className="w-5 h-5 text-accent-500" />
               </div>
               <div>
-                <p className="text-xl font-bold text-accent-600 dark:text-accent-400">{billableHours}h</p>
-                <p className="text-xs text-[var(--text-secondary)]">Billable Hours</p>
+                <p className="text-xl font-bold text-accent-600 dark:text-accent-400">{milestoneStats.total}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Total Milestones</p>
               </div>
             </CardContent>
           </Card>
@@ -200,8 +196,8 @@ export default function ProjectDetail() {
                 <Users className="w-5 h-5 text-purple-500" />
               </div>
               <div>
-                <p className="text-xl font-bold text-[var(--text-primary)]">{project.assignedEmployees.length}</p>
-                <p className="text-xs text-[var(--text-secondary)]">Team Members</p>
+                <p className="text-xl font-bold text-[var(--text-primary)]">{milestoneStats.completed}</p>
+                <p className="text-xs text-[var(--text-secondary)]">Completed</p>
               </div>
             </CardContent>
           </Card>
@@ -239,65 +235,74 @@ export default function ProjectDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
-                {project.milestones.map((milestone, i) => (
-                  <motion.div
-                    key={milestone.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    className={`flex items-center gap-4 p-3.5 rounded-xl transition-colors ${
-                      milestone.status === 'in-progress'
-                        ? 'bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-800/30'
-                        : 'hover:bg-[var(--bg-tertiary)]'
-                    }`}
-                  >
-                    {milestoneIcon(milestone.status)}
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm font-medium ${
-                          milestone.status === 'completed'
-                            ? 'text-[var(--text-tertiary)] line-through'
-                            : 'text-[var(--text-primary)]'
-                        }`}
-                      >
-                        {milestone.name}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                        milestone.status === 'completed'
-                          ? 'bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400'
-                          : milestone.status === 'in-progress'
-                          ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-                          : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
+              {milestones.length > 0 ? (
+                <div className="space-y-1">
+                  {milestones.map((milestone, i) => (
+                    <motion.div
+                      key={milestone.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      className={`flex items-center gap-4 p-3.5 rounded-xl transition-colors ${
+                        milestone.status === 'in-progress'
+                          ? 'bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-800/30'
+                          : 'hover:bg-[var(--bg-tertiary)]'
                       }`}
                     >
-                      {milestone.status === 'in-progress'
-                        ? 'In Progress'
-                        : milestone.status === 'completed'
-                        ? 'Completed'
-                        : 'Pending'}
-                    </span>
-                  </motion.div>
-                ))}
-              </div>
+                      {milestoneIcon(milestone.status)}
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-medium ${
+                            milestone.status === 'completed'
+                              ? 'text-[var(--text-tertiary)] line-through'
+                              : 'text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {milestone.name}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                          milestone.status === 'completed'
+                            ? 'bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400'
+                            : milestone.status === 'in-progress'
+                            ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                            : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
+                        }`}
+                      >
+                        {milestone.status === 'in-progress'
+                          ? 'In Progress'
+                          : milestone.status === 'completed'
+                          ? 'Completed'
+                          : 'Pending'}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <CalendarDays className="w-8 h-8 mx-auto text-[var(--text-tertiary)] mb-2" />
+                  <p className="text-sm text-[var(--text-tertiary)]">No milestones defined</p>
+                </div>
+              )}
 
               {/* Milestone Summary */}
-              <div className="mt-6 pt-4 border-t border-[var(--border-secondary)] grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-accent-500">{milestoneStats.completed}</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">Completed</p>
+              {milestones.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-[var(--border-secondary)] grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-accent-500">{milestoneStats.completed}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Completed</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-brand-500">{milestoneStats.inProgress}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">In Progress</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-[var(--text-tertiary)]">{milestoneStats.pending}</p>
+                    <p className="text-xs text-[var(--text-tertiary)]">Pending</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-brand-500">{milestoneStats.inProgress}</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">In Progress</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-[var(--text-tertiary)]">{milestoneStats.pending}</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">Pending</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -338,10 +343,12 @@ export default function ProjectDetail() {
                           {member.name}
                         </p>
                         <p className="text-xs text-[var(--text-tertiary)] truncate">
-                          {member.designation}
+                          {member.email}
                         </p>
                       </div>
-                      <StatusBadge status={member.submissionStatus} />
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400">
+                        {member.role}
+                      </span>
                     </motion.div>
                   ))}
                 </div>
@@ -351,48 +358,6 @@ export default function ProjectDetail() {
                   <p className="text-sm text-[var(--text-tertiary)]">No team members</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Hours Breakdown */}
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[var(--text-tertiary)]" />
-                Hours Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-[var(--text-secondary)]">Billable</span>
-                    <span className="text-sm font-semibold text-accent-600 dark:text-accent-400">{billableHours}h</span>
-                  </div>
-                  <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full bg-accent-500 transition-all duration-500"
-                      style={{ width: hoursLogged > 0 ? `${(billableHours / hoursLogged) * 100}%` : '0%' }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-[var(--text-secondary)]">Non-Billable</span>
-                    <span className="text-sm font-semibold text-warning-600 dark:text-warning-400">{hoursLogged - billableHours}h</span>
-                  </div>
-                  <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full bg-warning-500 transition-all duration-500"
-                      style={{ width: hoursLogged > 0 ? `${((hoursLogged - billableHours) / hoursLogged) * 100}%` : '0%' }}
-                    />
-                  </div>
-                </div>
-                <div className="pt-2 border-t border-[var(--border-secondary)] flex items-center justify-between">
-                  <span className="text-sm font-medium text-[var(--text-primary)]">Total</span>
-                  <span className="text-lg font-bold text-[var(--text-primary)]">{hoursLogged}h</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </motion.div>

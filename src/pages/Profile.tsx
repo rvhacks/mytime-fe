@@ -85,9 +85,23 @@ export default function Profile() {
   const buildAvatarUrl = (url: string | null | undefined) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
+    // Filter out absolute filesystem paths (e.g., /Users/... or C:\...)
+    if (url.startsWith('/Users/') || url.startsWith('/home/') || url.includes(':\\')) return null;
     return `${API_HOST}${url}`;
   };
   const [avatarUrl, setAvatarUrl] = useState<string | null>(buildAvatarUrl(user?.avatar));
+
+  // Fetch fresh profile from API on mount to get correct avatarUrl
+  useEffect(() => {
+    userAPI.getProfile().then((res) => {
+      const data = res.data.data;
+      if (data?.avatarUrl) {
+        setAvatarUrl(buildAvatarUrl(data.avatarUrl));
+        // Also update auth store
+        if (user) setUser({ ...user, avatar: data.avatarUrl });
+      }
+    }).catch(() => { /* ignore */ });
+  }, []);
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
