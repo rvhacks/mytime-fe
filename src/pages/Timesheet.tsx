@@ -138,13 +138,8 @@ export default function Timesheet() {
   // Determine which timesheet to show
   const isCurrentWeek = weekOffset === 0;
 
-  const activeTimesheet = useMemo(() => {
-    if (isCurrentWeek) return currentTimesheet;
-    // Match past timesheets by comparing weekStartDate
-    const displayStart = displayMonday.toISOString().slice(0, 10);
-    const match = pastTimesheets.find((ts) => ts.weekStartDate === displayStart);
-    return match || null;
-  }, [isCurrentWeek, currentTimesheet, pastTimesheets, displayMonday]);
+  // Always use currentTimesheet — loadWeek sets it for any week
+  const activeTimesheet = currentTimesheet;
 
   // Backdate support: allow editing past weeks (configurable limit)
   const BACKDATE_LIMIT_WEEKS = 4;
@@ -180,17 +175,16 @@ export default function Timesheet() {
       isFirstRender.current = false;
       return;
     }
-    if (!isCurrentWeek || isLocked) return;
+    if (isLocked) return;
     setAutoSaveState('idle');
     const timer = setTimeout(async () => {
       setAutoSaveState('saving');
-      // Simulate save without using store's isSaving
-      await new Promise((r) => setTimeout(r, 600));
+      await saveDraft();
       setAutoSaveState('saved');
       setTimeout(() => setAutoSaveState('idle'), 1500);
     }, 1000);
     return () => clearTimeout(timer);
-  }, [currentTimesheet.rows, isCurrentWeek, isLocked]);
+  }, [currentTimesheet.rows, isLocked]);
 
   // Per-entry submit: submit all draft rows that have a project selected
   const handleSubmitAll = async () => {
@@ -220,17 +214,15 @@ export default function Timesheet() {
   const goToNextWeek = () => setWeekOffset((o) => o + 1); // allow future weeks too
   const goToThisWeek = () => setWeekOffset(0);
 
-  // Draft hydration: when navigating weeks, load from API
+  // Load week from API on every week change (including current week)
   const { loadWeek } = useTimesheetStore();
   useEffect(() => {
-    if (weekOffset !== 0) {
-      const monday = shiftWeek(thisMonday, weekOffset);
-      const sunday = new Date(monday);
-      sunday.setDate(sunday.getDate() + 6);
-      const start = monday.toISOString().slice(0, 10);
-      const end = sunday.toISOString().slice(0, 10);
-      loadWeek(start, end);
-    }
+    const monday = shiftWeek(thisMonday, weekOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    const start = monday.toISOString().slice(0, 10);
+    const end = sunday.toISOString().slice(0, 10);
+    loadWeek(start, end);
   }, [weekOffset]);
 
   // Status badge with auto-save indicator
