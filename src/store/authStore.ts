@@ -23,11 +23,13 @@ function mapUser(u: any): User {
     email: u.email,
     name: `${u.first_name} ${u.last_name}`,
     role: u.role as UserRole,
+    isManager: !!u.isManager,
     phone: u.mobile || '',
     designation: u.designation?.name || '',
     dob: u.dob || '',
-    avatar: u.avatarUrl || '',
+    avatar: u.avatarUrl || u.avatar_path || '',
     joinDate: u.joining_date || '',
+    reportingManagerId: u.reporting_manager_id || '',
   };
 }
 

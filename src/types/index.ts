@@ -2,15 +2,18 @@
 // CRYSTAL TS — MY TIME TYPE DEFINITIONS
 // ========================================
 
-export type UserRole = 'employee' | 'manager' | 'admin';
+export type UserRole = 'employee' | 'admin';
 
 export type ProjectRole = 'IC' | 'TC' | 'MS' | 'TPM' | 'PM' | 'QA' | 'BA';
+
+export type EntryStatus = 'draft' | 'submitted' | 'recalled' | 'approved' | 'rejected';
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: UserRole;
+  isManager: boolean; // dynamic — true if has direct reports
   phone: string;
   designation: string;
   dob: string;
@@ -68,26 +71,40 @@ export interface ProjectAssignment {
   assignedAt: string;
 }
 
+/**
+ * TimesheetRow now has its own status lifecycle.
+ * Each row can be independently submitted, recalled, approved, rejected.
+ */
 export interface TimesheetRow {
   id: string;
   projectId: string;
   milestoneId: string;
   taskDescription: string;
   billable: boolean;
-  hours: Record<string, number>; // { 'mon': 8, 'tue': 7, ... }
+  hours: Record<string, number>;
+  status: EntryStatus;
+  submittedAt?: string;
+  reviewedBy?: string;
+  reviewerName?: string;
+  reviewedAt?: string;
+  reviewComments?: string;
+  // Populated from includes
+  projectName?: string;
+  projectCode?: string;
+  projectColor?: string;
+  milestoneName?: string;
 }
 
+/**
+ * TimesheetWeek is now just a container/envelope.
+ * Status lives at entry level, not here.
+ */
 export interface TimesheetWeek {
   id: string;
   userId: string;
   weekStartDate: string;
   weekEndDate: string;
   rows: TimesheetRow[];
-  status: 'draft' | 'submitted' | 'approved' | 'rejected';
-  submittedAt?: string;
-  reviewedAt?: string;
-  reviewedBy?: string;
-  comments?: string;
   totalHours: number;
 }
 
@@ -115,6 +132,30 @@ export interface TeamMember {
   submissionStatus: 'submitted' | 'pending' | 'overdue';
 }
 
+/**
+ * ApprovalEntry is per-entry, not per-timesheet.
+ */
+export interface ApprovalEntry {
+  id: string;
+  timesheetId: string;
+  userId: string;
+  userName: string;
+  weekStartDate: string;
+  weekEndDate: string;
+  projectId: string;
+  projectName: string;
+  projectCode: string;
+  projectColor: string;
+  milestoneName: string;
+  taskDescription: string;
+  billable: boolean;
+  hours: Record<string, number>;
+  totalHours: number;
+  status: EntryStatus;
+  submittedAt: string;
+}
+
+// Legacy compatibility
 export interface ApprovalItem {
   id: string;
   userId: string;

@@ -85,7 +85,8 @@ export default function Timesheet() {
     addRow,
     removeRow,
     saveDraft,
-    submitTimesheet,
+    submitEntries,
+    recallEntries,
     copyFromLastWeek,
     isSaving,
     fetchTimesheets,
@@ -148,10 +149,12 @@ export default function Timesheet() {
   // Backdate support: allow editing past weeks (configurable limit)
   const BACKDATE_LIMIT_WEEKS = 4;
   const isBackdatedBeyondLimit = weekOffset < -BACKDATE_LIMIT_WEEKS;
-  const isLocked =
-    isBackdatedBeyondLimit ||
-    activeTimesheet?.status === 'submitted' ||
-    activeTimesheet?.status === 'approved';
+  // Per-row locking: a row is locked if its status is submitted or approved
+  const isRowLocked = (status: string) => ['submitted', 'approved'].includes(status);
+  // Global lock only for backdate limit
+  const isGlobalLocked = isBackdatedBeyondLimit;
+  // Legacy compat
+  const isLocked = isGlobalLocked;
 
   // Computed totals
   const rows = activeTimesheet?.rows || [];
@@ -189,13 +192,28 @@ export default function Timesheet() {
     return () => clearTimeout(timer);
   }, [currentTimesheet.rows, isCurrentWeek, isLocked]);
 
-  const handleSubmit = async () => {
-    if (currentTimesheet.rows.length === 0) {
-      toast.error('Add at least one row before submitting');
+  // Per-entry submit: submit all draft rows that have a project selected
+  const handleSubmitAll = async () => {
+    await saveDraft();
+    // Wait a tick for state to update with saved IDs
+    await new Promise(r => setTimeout(r, 300));
+    const ts = useTimesheetStore.getState().currentTimesheet;
+    const draftIds = ts.rows
+      .filter((r) => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status))
+      .map((r) => r.id);
+    if (draftIds.length === 0) {
+      toast.error('No draft entries to submit');
       return;
     }
-    await submitTimesheet();
-    toast.success('Timesheet submitted for approval');
+    await submitEntries(draftIds);
+    toast.success(`${draftIds.length} entries submitted for approval`);
+  };
+
+  const handleRecallAll = async () => {
+    const submittedIds = rows.filter(r => r.status === 'submitted').map(r => r.id);
+    if (submittedIds.length === 0) return;
+    await recallEntries(submittedIds);
+    toast.success('Entries recalled');
   };
 
   const goToPrevWeek = () => setWeekOffset((o) => o - 1);
@@ -236,7 +254,13 @@ export default function Timesheet() {
         </span>
       );
     }
-    return <StatusBadge status={activeTimesheet.status} />;
+    // Show aggregate status from entries
+    const statuses = (activeTimesheet?.rows || []).map(r => r.status);
+    const allApproved = statuses.length > 0 && statuses.every(s => s === 'approved');
+    const hasSubmitted = statuses.some(s => s === 'submitted');
+    const hasRejected = statuses.some(s => s === 'rejected');
+    const aggStatus = allApproved ? 'approved' : hasSubmitted ? 'submitted' : hasRejected ? 'rejected' : 'draft';
+    return <StatusBadge status={aggStatus} />;
   };
 
   return (
@@ -294,18 +318,23 @@ export default function Timesheet() {
             </button>
           </div>
 
-          {/* Submit — only on current week and not locked */}
-          {isCurrentWeek && !isLocked && (
-            <Button size="sm" onClick={handleSubmit} isLoading={isSaving}>
+          {/* Submit / Recall */}
+          {!isGlobalLocked && rows.some(r => ['draft','recalled','rejected'].includes(r.status) && r.projectId) && (
+            <Button size="sm" onClick={handleSubmitAll} isLoading={isSaving}>
               <Send className="w-4 h-4" />
-              Submit
+              Submit All
+            </Button>
+          )}
+          {!isGlobalLocked && rows.some(r => r.status === 'submitted') && (
+            <Button size="sm" variant="outline" onClick={handleRecallAll} isLoading={isSaving}>
+              Recall Submitted
             </Button>
           )}
         </div>
       </div>
 
-      {/* Locked Banner */}
-      {activeTimesheet && isLocked && (
+      {/* Locked Banner — only for backdate limit */}
+      {activeTimesheet && isGlobalLocked && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -313,9 +342,7 @@ export default function Timesheet() {
         >
           <Lock className="w-5 h-5 text-brand-500" />
           <p className="text-sm text-brand-700 dark:text-brand-300">
-            {isCurrentWeek
-              ? `This timesheet has been ${activeTimesheet.status} and is locked for editing.`
-              : 'You are viewing a past week. Navigate to the current week to make edits.'}
+            This week is beyond the editable window.
           </p>
         </motion.div>
       )}
@@ -369,14 +396,17 @@ export default function Timesheet() {
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-16">
                         Total
                       </th>
-                      {!isLocked && <th className="w-12 p-4" />}
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-20">
+                        Status
+                      </th>
+                      {!isGlobalLocked && <th className="w-12 p-4" />}
                     </tr>
                   </thead>
                   <tbody>
                     <AnimatePresence>
                       {rows.map((row) => {
-                        const selectedProject = assignedProjects.find((p) => p.id === row.projectId);
                         const rowMilestones = getMilestonesForProject(row.projectId);
+                        const locked = isGlobalLocked || isRowLocked(row.status);
 
                         return (
                           <motion.tr
@@ -384,7 +414,7 @@ export default function Timesheet() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="border-b border-[var(--border-secondary)] last:border-0 group"
+                            className={`border-b border-[var(--border-secondary)] last:border-0 group ${locked ? 'opacity-80' : ''}`}
                           >
                             {/* Project */}
                             <td className="p-3">
@@ -393,12 +423,11 @@ export default function Timesheet() {
                                 onChange={(e) => {
                                   const projectId = e.target.value;
                                   updateRowField(row.id, 'projectId', projectId);
-                                  updateRowField(row.id, 'milestoneId', ''); // reset milestone
-                                  // Fetch milestones for the selected project's role
+                                  updateRowField(row.id, 'milestoneId', '');
                                   const proj = assignedProjects.find((p) => p.id === projectId);
                                   if (proj?.role) fetchMilestonesForRole(proj.role);
                                 }}
-                                disabled={isLocked}
+                                disabled={locked}
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] pl-2 pr-8 truncate appearance-none bg-[length:16px_16px] bg-[right_0.5rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
                               >
                                 <option value="">Select project</option>
@@ -407,13 +436,12 @@ export default function Timesheet() {
                                 ))}
                               </select>
                             </td>
-
-                            {/* Milestone (Role-filtered) */}
+                            {/* Milestone */}
                             <td className="p-3">
                               <select
                                 value={row.milestoneId}
                                 onChange={(e) => updateRowField(row.id, 'milestoneId', e.target.value)}
-                                disabled={isLocked || !row.projectId}
+                                disabled={locked || !row.projectId}
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] pl-2 pr-8 truncate appearance-none bg-[length:16px_16px] bg-[right_0.5rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50"
                               >
                                 <option value="">Select milestone</option>
@@ -422,85 +450,65 @@ export default function Timesheet() {
                                 ))}
                               </select>
                             </td>
-                            {/* Task Description */}
+                            {/* Task */}
                             <td className="p-3">
-                              <input
-                                type="text"
-                                value={row.taskDescription}
+                              <input type="text" value={row.taskDescription}
                                 onChange={(e) => updateRowField(row.id, 'taskDescription', e.target.value)}
-                                disabled={isLocked}
-                                placeholder="What did you work on?"
+                                disabled={locked} placeholder="What did you work on?"
                                 className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 placeholder:text-[var(--text-tertiary)]"
                               />
                             </td>
-
-                            {/* Billable Checkbox */}
+                            {/* Billable */}
                             <td className="p-3 text-center">
                               <label className="inline-flex items-center justify-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={row.billable}
+                                <input type="checkbox" checked={row.billable}
                                   onChange={(e) => updateRowField(row.id, 'billable', e.target.checked as any)}
-                                  disabled={isLocked}
-                                  className="sr-only peer"
-                                />
+                                  disabled={locked} className="sr-only peer" />
                                 <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${
-                                  row.billable
-                                    ? 'bg-accent-500 border-accent-500'
-                                    : 'border-[var(--input-border)] bg-[var(--input-bg)]'
-                                } ${isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent-400'}`}>
-                                  {row.billable && (
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
+                                  row.billable ? 'bg-accent-500 border-accent-500' : 'border-[var(--input-border)] bg-[var(--input-bg)]'
+                                } ${locked ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent-400'}`}>
+                                  {row.billable && (<svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>)}
                                 </div>
                               </label>
                             </td>
-
-                            {/* Day Hours — Weekend UX */}
+                            {/* Day Hours */}
                             {days.map((day) => {
                               const isWeekend = day.key === 'sat' || day.key === 'sun';
                               return (
                                 <td key={day.key} className={`p-2 ${isWeekend ? 'bg-[var(--bg-tertiary)]/50' : ''}`}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="24"
-                                    step="0.5"
+                                  <input type="number" min="0" max="24" step="0.5"
                                     value={row.hours[day.key] || ''}
                                     onChange={(e) => {
                                       const val = parseFloat(e.target.value) || 0;
-                                      if (isWeekend && val > 0) {
-                                        toast('You are logging hours on weekend.', { icon: '⚠️', id: `weekend-${row.id}-${day.key}` });
-                                      }
+                                      if (isWeekend && val > 0) toast('Weekend hours logged.', { icon: '⚠️', id: `we-${row.id}-${day.key}` });
                                       updateRowHours(row.id, day.key, val);
                                     }}
-                                    disabled={isLocked}
+                                    disabled={locked}
                                     className={`w-14 h-9 rounded-lg border border-[var(--input-border)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                                      isWeekend ? 'bg-[var(--bg-tertiary)] opacity-60' : 'bg-[var(--input-bg)]'
-                                    }`}
+                                      isWeekend ? 'bg-[var(--bg-tertiary)] opacity-60' : 'bg-[var(--input-bg)]'}`}
                                   />
                                 </td>
                               );
                             })}
-
                             {/* Row Total */}
                             <td className="p-3 text-center">
-                              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                                {getRowTotal(row.hours)}h
-                              </span>
+                              <span className="text-sm font-semibold text-[var(--text-primary)]">{getRowTotal(row.hours)}h</span>
                             </td>
-
-                            {/* Delete */}
-                            {!isLocked && (
+                            {/* Per-Row Status Badge */}
+                            <td className="p-3 text-center">
+                              <StatusBadge status={row.status || 'draft'} />
+                            </td>
+                            {/* Delete — only for editable rows */}
+                            {!isGlobalLocked && (
                               <td className="p-3">
-                                <button
-                                  onClick={() => removeRow(row.id)}
-                                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-all"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                {!isRowLocked(row.status) ? (
+                                  <button onClick={() => removeRow(row.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-all">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <Lock className="w-4 h-4 text-[var(--text-tertiary)] mx-auto" />
+                                )}
                               </td>
                             )}
                           </motion.tr>
@@ -525,14 +533,15 @@ export default function Timesheet() {
                           {totalHours}h
                         </span>
                       </td>
-                      {!isLocked && <td />}
+                      <td />
+                      {!isGlobalLocked && <td />}
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               {/* Add Row */}
-              {!isLocked && (
+              {!isGlobalLocked && (
                 <div className="p-4 border-t border-[var(--border-secondary)] flex items-center gap-2">
                   <Button variant="ghost" size="sm" onClick={addRow} className="text-brand-500 hover:text-brand-600">
                     <Plus className="w-4 h-4" />

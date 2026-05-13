@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { Project, ApprovalItem, TimesheetRow, DashboardStats } from '@/types';
+import type { Project, ApprovalEntry, DashboardStats } from '@/types';
 import { projectAPI, timesheetAPI, dashboardAPI } from '@/services/api';
 
 interface AdminStore {
   projects: Project[];
-  approvals: ApprovalItem[];
+  approvals: ApprovalEntry[];
   dashboardStats: DashboardStats | null;
   isLoading: boolean;
 
@@ -14,8 +14,8 @@ interface AdminStore {
   deleteProject: (id: string) => Promise<void>;
 
   fetchApprovals: () => Promise<void>;
-  approveTimesheet: (id: string, comments?: string) => Promise<void>;
-  rejectTimesheet: (id: string, comments: string) => Promise<void>;
+  approveEntries: (entryIds: string[], comments?: string) => Promise<void>;
+  rejectEntries: (entryIds: string[], comments: string) => Promise<void>;
 
   fetchDashboardStats: () => Promise<void>;
 }
@@ -36,39 +36,42 @@ function mapProject(p: any): Project {
   };
 }
 
-/** Map backend timesheet → approval item */
-function mapApproval(ts: any): ApprovalItem {
-  const entries = ts.entries || [];
-  const projectNames = [...new Set(entries.map((e: any) => e.project?.name).filter(Boolean))] as string[];
-  const rows: TimesheetRow[] = entries.map((e: any) => ({
-    id: e.id,
-    projectId: e.project_id,
-    milestoneId: e.milestone_id || '',
-    taskDescription: e.task_description || '',
-    billable: e.billable,
-    hours: {
-      mon: Number(e.hours_mon) || 0,
-      tue: Number(e.hours_tue) || 0,
-      wed: Number(e.hours_wed) || 0,
-      thu: Number(e.hours_thu) || 0,
-      fri: Number(e.hours_fri) || 0,
-      sat: Number(e.hours_sat) || 0,
-      sun: Number(e.hours_sun) || 0,
-    },
-  }));
+/** Map backend entry → approval entry */
+function mapApprovalEntry(entry: any): ApprovalEntry {
+  const ts = entry.timesheet || {};
+  const user = ts.user || {};
+  const project = entry.project || {};
+  const milestone = entry.milestone || {};
+
+  const hours: Record<string, number> = {
+    mon: Number(entry.hours_mon) || 0,
+    tue: Number(entry.hours_tue) || 0,
+    wed: Number(entry.hours_wed) || 0,
+    thu: Number(entry.hours_thu) || 0,
+    fri: Number(entry.hours_fri) || 0,
+    sat: Number(entry.hours_sat) || 0,
+    sun: Number(entry.hours_sun) || 0,
+  };
+  const totalHours = Object.values(hours).reduce((a, b) => a + b, 0);
 
   return {
-    id: ts.id,
-    userId: ts.user_id,
-    userName: ts.user ? `${ts.user.first_name} ${ts.user.last_name}` : 'Unknown',
-    userAvatar: '',
-    weekStartDate: ts.week_start_date,
-    weekEndDate: ts.week_end_date,
-    totalHours: Number(ts.total_hours) || 0,
-    status: ts.status === 'submitted' ? 'pending' : ts.status,
-    submittedAt: ts.submitted_at || '',
-    projects: projectNames,
-    rows,
+    id: entry.id,
+    timesheetId: entry.timesheet_id || ts.id || '',
+    userId: ts.user_id || user.id || '',
+    userName: user.first_name ? `${user.first_name} ${user.last_name}` : 'Unknown',
+    weekStartDate: ts.week_start_date || '',
+    weekEndDate: ts.week_end_date || '',
+    projectId: entry.project_id || project.id || '',
+    projectName: project.name || '',
+    projectCode: project.project_code || '',
+    projectColor: project.color || '#6366f1',
+    milestoneName: milestone.name || '—',
+    taskDescription: entry.task_description || '',
+    billable: entry.billable !== false,
+    hours,
+    totalHours,
+    status: entry.status || 'submitted',
+    submittedAt: entry.submitted_at || '',
   };
 }
 
@@ -150,18 +153,18 @@ export const useAdminStore = create<AdminStore>((set) => ({
     try {
       const res = await timesheetAPI.getPendingApprovals();
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ approvals: (Array.isArray(rows) ? rows : []).map(mapApproval), isLoading: false });
+      set({ approvals: (Array.isArray(rows) ? rows : []).map(mapApprovalEntry), isLoading: false });
     } catch {
       set({ isLoading: false });
     }
   },
 
-  approveTimesheet: async (id, comments) => {
+  approveEntries: async (entryIds, comments) => {
     set({ isLoading: true });
     try {
-      await timesheetAPI.approvalAction(id, 'approve', comments);
+      await timesheetAPI.approvalAction(entryIds, 'approve', comments);
       set((s) => ({
-        approvals: s.approvals.map((a) => (a.id === id ? { ...a, status: 'approved' as const } : a)),
+        approvals: s.approvals.filter((a) => !entryIds.includes(a.id)),
         isLoading: false,
       }));
     } catch {
@@ -169,12 +172,12 @@ export const useAdminStore = create<AdminStore>((set) => ({
     }
   },
 
-  rejectTimesheet: async (id, comments) => {
+  rejectEntries: async (entryIds, comments) => {
     set({ isLoading: true });
     try {
-      await timesheetAPI.approvalAction(id, 'reject', comments);
+      await timesheetAPI.approvalAction(entryIds, 'reject', comments);
       set((s) => ({
-        approvals: s.approvals.map((a) => (a.id === id ? { ...a, status: 'rejected' as const } : a)),
+        approvals: s.approvals.filter((a) => !entryIds.includes(a.id)),
         isLoading: false,
       }));
     } catch {

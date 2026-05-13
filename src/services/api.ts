@@ -118,13 +118,16 @@ export const timesheetAPI = {
   getAssignedProjects: () => api.get('/timesheets/assigned-projects'),
   getMilestonesByRole: (role: string) => api.get(`/timesheets/milestones/role/${role}`),
   save: (data: any) => api.post('/timesheets/save', data),
-  submit: (timesheetId: string) => api.post('/timesheets/submit', { timesheetId }),
-  recall: (id: string) => api.post(`/timesheets/recall/${id}`),
+  // Entry-level submit/recall
+  submitEntries: (entryIds: string[]) => api.post('/timesheets/submit', { entryIds }),
+  recallEntries: (entryIds: string[]) => api.post('/timesheets/recall', { entryIds }),
   getDetail: (id: string) => api.get(`/timesheets/detail/${id}`),
-  // Approvals
+  // Project detail (for employees)
+  getProjectDetail: (projectId: string) => api.get(`/timesheets/project/${projectId}`),
+  // Approvals (entry-level)
   getPendingApprovals: (params?: any) => api.get('/timesheets/approvals', { params }),
-  approvalAction: (timesheetId: string, action: 'approve' | 'reject', comments?: string) =>
-    api.post('/timesheets/approvals/action', { timesheetId, action, comments }),
+  approvalAction: (entryIds: string[], action: 'approve' | 'reject', comments?: string) =>
+    api.post('/timesheets/approvals/action', { entryIds, action, comments }),
   // Admin: view employee timesheets
   getEmployeeTimesheets: (employeeId: string, params?: any) =>
     api.get(`/timesheets/employee/${employeeId}`, { params }),

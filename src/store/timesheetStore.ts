@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TimesheetWeek, TimesheetRow } from '@/types';
+import type { TimesheetWeek, TimesheetRow, EntryStatus } from '@/types';
 import { timesheetAPI } from '@/services/api';
 import { generateId } from '@/lib/utils';
 
@@ -17,8 +17,8 @@ interface TimesheetStore {
   removeRow: (rowId: string) => void;
   copyFromLastWeek: () => boolean;
   saveDraft: () => Promise<void>;
-  submitTimesheet: () => Promise<void>;
-  recallTimesheet: (id: string) => Promise<void>;
+  submitEntries: (entryIds: string[]) => Promise<void>;
+  recallEntries: (entryIds: string[]) => Promise<void>;
   recalculateTotal: () => void;
 }
 
@@ -38,22 +38,31 @@ function mapTimesheetRow(e: any): TimesheetRow {
       sat: Number(e.hours_sat) || 0,
       sun: Number(e.hours_sun) || 0,
     },
+    // Per-entry status
+    status: (e.status || 'draft') as EntryStatus,
+    submittedAt: e.submitted_at || undefined,
+    reviewedBy: e.reviewed_by || undefined,
+    reviewerName: e.reviewer ? `${e.reviewer.first_name} ${e.reviewer.last_name}` : undefined,
+    reviewedAt: e.reviewed_at || undefined,
+    reviewComments: e.review_comments || undefined,
+    projectName: e.project?.name || '',
+    projectCode: e.project?.project_code || '',
+    projectColor: e.project?.color || '',
+    milestoneName: e.milestone?.name || '',
   };
 }
 
 function mapTimesheet(ts: any): TimesheetWeek {
   const rows = (ts.entries || []).map(mapTimesheetRow);
+  const totalHours = rows.reduce(
+    (sum: number, r: TimesheetRow) => sum + Object.values(r.hours).reduce((a: number, b: number) => a + b, 0), 0
+  );
   return {
     id: ts.id,
     userId: ts.user_id,
     weekStartDate: ts.week_start_date,
     weekEndDate: ts.week_end_date,
-    status: ts.status,
-    submittedAt: ts.submitted_at || undefined,
-    reviewedAt: ts.reviewed_at || undefined,
-    reviewedBy: ts.reviewed_by || undefined,
-    comments: ts.comments || undefined,
-    totalHours: Number(ts.total_hours) || 0,
+    totalHours,
     rows,
   };
 }
@@ -72,10 +81,9 @@ function emptyTimesheet(): TimesheetWeek {
     userId: '',
     weekStartDate: fmt(monday),
     weekEndDate: fmt(sunday),
-    status: 'draft',
     totalHours: 0,
     rows: [
-      { id: generateId(), projectId: '', milestoneId: '', taskDescription: '', billable: true, hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 } },
+      { id: generateId(), projectId: '', milestoneId: '', taskDescription: '', billable: true, hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 }, status: 'draft' as EntryStatus },
     ],
   };
 }
@@ -94,7 +102,6 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       const rows = data.rows || data;
       const all = (Array.isArray(rows) ? rows : []).map(mapTimesheet);
 
-      // Current week = most recent draft or the one matching this week
       const today = new Date();
       const dayOfWeek = today.getDay();
       const monday = new Date(today);
@@ -122,8 +129,8 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       } else {
         set({
           currentTimesheet: {
-            id: '', userId: '', weekStartDate, weekEndDate, status: 'draft', totalHours: 0,
-            rows: [{ id: generateId(), projectId: '', milestoneId: '', taskDescription: '', billable: true, hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 } }],
+            id: '', userId: '', weekStartDate, weekEndDate, totalHours: 0,
+            rows: [{ id: generateId(), projectId: '', milestoneId: '', taskDescription: '', billable: true, hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 }, status: 'draft' as EntryStatus }],
           },
           isLoading: false,
         });
@@ -161,6 +168,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       id: generateId(),
       projectId: '', milestoneId: '', taskDescription: '', billable: true,
       hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 },
+      status: 'draft' as EntryStatus,
     };
     set((state) => ({
       currentTimesheet: { ...state.currentTimesheet, rows: [...state.currentTimesheet.rows, newRow] },
@@ -188,6 +196,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       id: generateId(), projectId: r.projectId, milestoneId: r.milestoneId,
       taskDescription: r.taskDescription, billable: r.billable,
       hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 },
+      status: 'draft' as EntryStatus,
     }));
     set((state) => ({
       currentTimesheet: { ...state.currentTimesheet, rows: copiedRows, totalHours: 0 },
@@ -195,18 +204,29 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     return true;
   },
 
+  /**
+   * Save only editable (draft/recalled/rejected) entries.
+   * Locked entries (submitted/approved) are preserved on the backend.
+   */
   saveDraft: async () => {
     set({ isSaving: true });
     try {
       const ts = get().currentTimesheet;
-      const entries = ts.rows.filter((r) => r.projectId).map((r) => ({
+      // Only send editable rows to the save API
+      const editableRows = ts.rows.filter((r) =>
+        r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status)
+      );
+      const entries = editableRows.map((r) => ({
         projectId: r.projectId,
         milestoneId: r.milestoneId || null,
         taskDescription: r.taskDescription,
         billable: r.billable,
         hours: r.hours,
       }));
-      if (entries.length === 0) { set({ isSaving: false }); return; }
+      if (entries.length === 0 && ts.rows.filter(r => r.projectId).length === 0) {
+        set({ isSaving: false });
+        return;
+      }
 
       const res = await timesheetAPI.save({
         weekStartDate: ts.weekStartDate,
@@ -219,28 +239,35 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     }
   },
 
-  submitTimesheet: async () => {
+  /**
+   * Submit specific entry IDs (per-entry submission).
+   */
+  submitEntries: async (entryIds) => {
     set({ isSaving: true });
     try {
-      // Save first if needed
-      const ts = get().currentTimesheet;
-      if (!ts.id) await get().saveDraft();
-
-      const updatedTs = get().currentTimesheet;
-      if (!updatedTs.id) { set({ isSaving: false }); return; }
-
-      const res = await timesheetAPI.submit(updatedTs.id);
-      set({ currentTimesheet: mapTimesheet(res.data.data), isSaving: false });
+      const res = await timesheetAPI.submitEntries(entryIds);
+      if (res.data.data) {
+        set({ currentTimesheet: mapTimesheet(res.data.data), isSaving: false });
+      } else {
+        set({ isSaving: false });
+      }
     } catch {
       set({ isSaving: false });
     }
   },
 
-  recallTimesheet: async (id) => {
+  /**
+   * Recall specific entry IDs (per-entry recall).
+   */
+  recallEntries: async (entryIds) => {
     set({ isSaving: true });
     try {
-      const res = await timesheetAPI.recall(id);
-      set({ currentTimesheet: mapTimesheet(res.data.data), isSaving: false });
+      const res = await timesheetAPI.recallEntries(entryIds);
+      if (res.data.data) {
+        set({ currentTimesheet: mapTimesheet(res.data.data), isSaving: false });
+      } else {
+        set({ isSaving: false });
+      }
     } catch {
       set({ isSaving: false });
     }

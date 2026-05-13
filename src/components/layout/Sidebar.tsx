@@ -37,12 +37,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'manager', 'admin'] },
-  { path: '/timesheet', label: 'Timesheet', icon: Clock, roles: ['employee', 'manager'] },
-  { path: '/reports', label: 'Reports', icon: BarChart3, roles: ['employee', 'manager', 'admin'] },
-  { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee', 'manager'] },
-  { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['manager', 'admin'] },
-  { path: '/profile', label: 'Profile', icon: User, roles: ['employee', 'manager', 'admin'] },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'admin'] },
+  { path: '/timesheet', label: 'Timesheet', icon: Clock, roles: ['employee', 'admin'] },
+  { path: '/reports', label: 'Reports', icon: BarChart3, roles: ['employee', 'admin'] },
+  { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee', 'admin'] },
+  { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['admin'] },
+  { path: '/profile', label: 'Profile', icon: User, roles: ['employee', 'admin'] },
 ];
 
 const managementItems: NavItem[] = [
@@ -64,7 +64,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     navigate('/login');
   };
 
-  const visibleItems = navItems.filter((item) => user && item.roles.includes(user.role));
+  // Dynamic visibility: 'manager' is no longer a static role
+  const visibleItems = navItems.filter((item) => {
+    if (!user) return false;
+    // Special case: Approvals visible to dynamic managers and admin
+    if (item.path === '/approvals') {
+      return user.role === 'admin' || user.isManager;
+    }
+    return item.roles.includes(user.role);
+  });
   const showManagement = user && user.role === 'admin';
   const isMgmtActive = location.pathname.startsWith('/management');
 
