@@ -79,7 +79,6 @@ function getWeekLabel(offset: number): string {
 export default function Timesheet() {
   const {
     currentTimesheet,
-    pastTimesheets,
     updateRowHours,
     updateRowField,
     addRow,
@@ -90,6 +89,7 @@ export default function Timesheet() {
     copyFromLastWeek,
     isSaving,
     fetchTimesheets,
+    _lastSavedHash,
   } = useTimesheetStore();
 
   const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string;role:string}[]>([]);
@@ -167,7 +167,7 @@ export default function Timesheet() {
 
   const nonBillableHours = totalHours - billableHours;
 
-  // Auto-save draft on any change (debounced) — no toast, no isSaving
+  // Auto-save draft on any change (debounced) — compares hash to prevent loop
   const isFirstRender = useRef(true);
   const [autoSaveState, setAutoSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   useEffect(() => {
@@ -176,15 +176,21 @@ export default function Timesheet() {
       return;
     }
     if (isLocked) return;
+    // Build current hash of editable data
+    const currentHash = JSON.stringify(currentTimesheet.rows.map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
+    // Skip if nothing changed from last save (prevents infinite loop)
+    if (currentHash === _lastSavedHash) return;
+    // Only auto-save if there are rows with projects
+    if (!currentTimesheet.rows.some(r => r.projectId)) return;
     setAutoSaveState('idle');
     const timer = setTimeout(async () => {
       setAutoSaveState('saving');
       await saveDraft();
       setAutoSaveState('saved');
       setTimeout(() => setAutoSaveState('idle'), 1500);
-    }, 1000);
+    }, 1200);
     return () => clearTimeout(timer);
-  }, [currentTimesheet.rows, isLocked]);
+  }, [currentTimesheet.rows, isLocked, _lastSavedHash]);
 
   // Per-entry submit: submit all draft rows that have a project selected
   const handleSubmitAll = async () => {

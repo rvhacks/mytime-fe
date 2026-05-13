@@ -81,7 +81,13 @@ export default function Profile() {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '');
+  const buildAvatarUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${API_HOST}${url}`;
+  };
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(buildAvatarUrl(user?.avatar));
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
@@ -122,7 +128,12 @@ export default function Profile() {
       const file = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' });
       const res = await userAPI.uploadAvatar(file);
       const url = res.data.data?.avatarUrl;
-      if (url) setAvatarUrl(url);
+      if (url) {
+        const fullUrl = buildAvatarUrl(url);
+        setAvatarUrl(fullUrl);
+        // Update auth store so sidebar/header reflect new avatar
+        if (user) setUser({ ...user, avatar: url });
+      }
       toast.success('Profile photo updated!');
       setCropModalOpen(false);
       setImageSrc(null);

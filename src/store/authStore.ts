@@ -9,6 +9,7 @@ interface AuthStore {
   error: string | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  setUser: (user: User) => void;
   clearError: () => void;
   forgotPassword: (email: string) => Promise<boolean>;
   verifyOTP: (email: string, otp: string) => Promise<boolean>;
@@ -73,6 +74,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  setUser: (user: User) => {
+    localStorage.setItem('mytime_user', JSON.stringify(user));
+    set({ user });
+  },
 
   forgotPassword: async (email: string) => {
     set({ isLoading: true, error: null, _fpEmail: email });

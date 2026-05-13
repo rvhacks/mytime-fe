@@ -8,6 +8,7 @@ interface TimesheetStore {
   pastTimesheets: TimesheetWeek[];
   isLoading: boolean;
   isSaving: boolean;
+  _lastSavedHash: string;
 
   fetchTimesheets: () => Promise<void>;
   loadWeek: (weekStartDate: string, weekEndDate: string) => Promise<void>;
@@ -26,7 +27,7 @@ function mapTimesheetRow(e: any): TimesheetRow {
   return {
     id: e.id,
     projectId: e.project_id || e.project?.id || '',
-    milestoneId: e.milestone_id || '',
+    milestoneId: e.milestone_id || e.milestone?.id || '',
     taskDescription: e.task_description || '',
     billable: e.billable !== false,
     hours: {
@@ -93,6 +94,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
   pastTimesheets: [],
   isLoading: false,
   isSaving: false,
+  _lastSavedHash: '',
 
   fetchTimesheets: async () => {
     set({ isLoading: true });
@@ -233,7 +235,9 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         weekEndDate: ts.weekEndDate,
         entries,
       });
-      set({ currentTimesheet: mapTimesheet(res.data.data), isSaving: false });
+      // Only update with API response, but DON'T trigger auto-save again
+      const mapped = mapTimesheet(res.data.data);
+      set({ currentTimesheet: mapped, isSaving: false, _lastSavedHash: JSON.stringify(mapped.rows.map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours}))) });
     } catch {
       set({ isSaving: false });
     }
