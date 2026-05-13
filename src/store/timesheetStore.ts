@@ -126,15 +126,22 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     try {
       const res = await timesheetAPI.getWeekTimesheet(weekStartDate);
       const ts = res.data.data;
-      if (ts) {
-        set({ currentTimesheet: mapTimesheet(ts), isLoading: false });
+      if (ts && ts.entries && ts.entries.length > 0) {
+        const mapped = mapTimesheet(ts);
+        // Initialize hash so auto-save doesn't immediately trigger
+        const hash = JSON.stringify(mapped.rows
+          .filter(r => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status) && Object.values(r.hours).some(h => h > 0))
+          .map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
+        set({ currentTimesheet: mapped, isLoading: false, _lastSavedHash: hash });
       } else {
+        // No timesheet exists — empty rows array
         set({
           currentTimesheet: {
             id: '', userId: '', weekStartDate, weekEndDate, totalHours: 0,
-            rows: [{ id: generateId(), projectId: '', milestoneId: '', taskDescription: '', billable: true, hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 }, status: 'draft' as EntryStatus }],
+            rows: [],
           },
           isLoading: false,
+          _lastSavedHash: '[]',
         });
       }
     } catch {

@@ -373,24 +373,25 @@ export default function Timesheet() {
         </motion.div>
       )}
 
-      {/* Empty State for past weeks with no data */}
-      {!activeTimesheet && !isCurrentWeek && (
+      {/* Empty State — no rows at all */}
+      {rows.length === 0 && !isGlobalLocked && (
         <Card>
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-10 h-10 mx-auto text-[var(--text-tertiary)] mb-3" />
-            <p className="text-lg font-medium text-[var(--text-primary)]">No timesheet for this week</p>
+            <p className="text-lg font-medium text-[var(--text-primary)]">No timesheet submitted for this week</p>
             <p className="text-sm text-[var(--text-tertiary)] mt-1">
-              No timesheet was submitted for {formatWeekRange(displayMonday)}
+              {formatWeekRange(displayMonday)}
             </p>
-            <Button size="sm" className="mt-4" onClick={goToThisWeek}>
-              Go to This Week
+            <Button size="sm" className="mt-4" onClick={() => addRow()}>
+              <Plus className="w-4 h-4" />
+              Add Timesheet Entry
             </Button>
           </CardContent>
         </Card>
       )}
 
       {/* Timesheet Grid */}
-      {activeTimesheet && (
+      {rows.length > 0 && (
         <>
           <Card>
             <CardContent className="p-0">
@@ -429,17 +430,14 @@ export default function Timesheet() {
                     </tr>
                   </thead>
                   <tbody>
-                    <AnimatePresence>
+                    {/* Rows */}
                       {rows.map((row) => {
                         const rowMilestones = getMilestonesForProject(row.projectId);
                         const locked = isGlobalLocked || isRowLocked(row.status);
 
                         return (
-                          <motion.tr
+                          <tr
                             key={row.id}
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
                             className={`border-b border-[var(--border-secondary)] last:border-0 group ${locked ? 'opacity-80' : ''}`}
                           >
                             {/* Project */}
@@ -546,10 +544,9 @@ export default function Timesheet() {
                                 )}
                               </td>
                             )}
-                          </motion.tr>
+                          </tr>
                         );
                       })}
-                    </AnimatePresence>
 
                     {/* Totals Row */}
                     <tr className="bg-[var(--bg-tertiary)]">
