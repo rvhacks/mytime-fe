@@ -44,6 +44,8 @@ export const authAPI = {
     api.post('/auth/verify-otp', { email, otp }),
   resetPassword: (email: string, otp: string, newPassword: string) =>
     api.post('/auth/reset-password', { email, otp, newPassword }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
   getMe: () => api.get('/auth/me'),
 };
 

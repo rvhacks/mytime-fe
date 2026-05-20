@@ -19,6 +19,7 @@ import ProjectDetail from '@/pages/ProjectDetail';
 import ProjectTeam from '@/pages/ProjectTeam';
 import Approvals from '@/pages/Approvals';
 import Profile from '@/pages/Profile';
+import ChangePassword from '@/pages/ChangePassword';
 
 // Management pages (admin)
 import Designations from '@/pages/management/Designations';
@@ -29,10 +30,16 @@ import Milestones from '@/pages/management/Milestones';
 import AdminApprovals from '@/pages/management/AdminApprovals';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, mustChangePassword } = useAuthStore();
+  const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Force password change — redirect away from everything except /change-password
+  if (mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
@@ -72,6 +79,13 @@ export default function App() {
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
         <Route path="/verify-otp" element={<PublicRoute><OTPVerificationPage /></PublicRoute>} />
         <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+
+        {/* Force Change Password Route */}
+        <Route path="/change-password" element={
+          <ProtectedRoute>
+            <ChangePassword />
+          </ProtectedRoute>
+        } />
 
         {/* Protected App Routes */}
         <Route

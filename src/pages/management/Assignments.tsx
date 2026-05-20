@@ -136,6 +136,8 @@ export default function Assignments() {
               onChange={(val) => setFilterEmpId(val)}
               placeholder="Filter by employee..."
               fetchFn={fetchEmpOptions}
+              getOptionValue={(item) => item.id}
+              getOptionLabel={(item) => item.label}
             />
           </div>
           <div className="w-52">
@@ -144,6 +146,8 @@ export default function Assignments() {
               onChange={(val) => setFilterProjId(val)}
               placeholder="Filter by project..."
               fetchFn={fetchProjOptions}
+              getOptionValue={(item) => item.id}
+              getOptionLabel={(item) => item.label}
             />
           </div>
           {(filterEmpId || filterProjId) && (
@@ -157,7 +161,7 @@ export default function Assignments() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] rounded-xl">
             <table className="w-full">
               <thead className="sticky top-0 z-10 bg-[var(--card-bg)]">
                 <tr className="border-b border-[var(--border-secondary)]">

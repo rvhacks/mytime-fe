@@ -276,7 +276,7 @@ export default function Employees() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] rounded-xl">
             <table className="w-full">
               <thead className="sticky top-0 z-10 bg-[var(--card-bg)]">
                 <tr className="border-b border-[var(--border-secondary)]">

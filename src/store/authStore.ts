@@ -7,6 +7,7 @@ interface AuthStore {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  mustChangePassword: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   setUser: (user: User) => void;
@@ -14,6 +15,7 @@ interface AuthStore {
   forgotPassword: (email: string) => Promise<boolean>;
   verifyOTP: (email: string, otp: string) => Promise<boolean>;
   resetPassword: (email: string, otp: string, password: string) => Promise<boolean>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   _fpEmail: string;
 }
 
@@ -46,6 +48,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isAuthenticated: !!localStorage.getItem('mytime_token'),
   isLoading: false,
   error: null,
+  mustChangePassword: (() => {
+    try { return localStorage.getItem('mytime_must_change_pw') === 'true'; } catch { return false; }
+  })(),
   _fpEmail: '',
 
   login: async (email: string, password: string) => {
@@ -54,11 +59,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const res = await authAPI.login(email, password);
       const { token, refreshToken, user: rawUser } = res.data.data;
       const user = mapUser(rawUser);
+      const mustChange = !!rawUser.mustChangePassword;
 
       localStorage.setItem('mytime_token', token);
       localStorage.setItem('mytime_user', JSON.stringify(user));
+      if (mustChange) {
+        localStorage.setItem('mytime_must_change_pw', 'true');
+      } else {
+        localStorage.removeItem('mytime_must_change_pw');
+      }
 
-      set({ user, isAuthenticated: true, isLoading: false, error: null });
+      set({ user, isAuthenticated: true, isLoading: false, error: null, mustChangePassword: mustChange });
       return true;
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Login failed';
@@ -70,7 +81,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   logout: () => {
     localStorage.removeItem('mytime_token');
     localStorage.removeItem('mytime_user');
-    set({ user: null, isAuthenticated: false, error: null });
+    localStorage.removeItem('mytime_must_change_pw');
+    set({ user: null, isAuthenticated: false, error: null, mustChangePassword: false });
   },
 
   clearError: () => set({ error: null }),
@@ -112,6 +124,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return true;
     } catch (err: any) {
       set({ isLoading: false, error: err.response?.data?.message || 'Reset failed' });
+      return false;
+    }
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await authAPI.changePassword(currentPassword, newPassword);
+      localStorage.removeItem('mytime_must_change_pw');
+      set({ isLoading: false, mustChangePassword: false });
+      return true;
+    } catch (err: any) {
+      set({ isLoading: false, error: err.response?.data?.message || 'Failed to change password' });
       return false;
     }
   },
