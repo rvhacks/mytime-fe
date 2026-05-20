@@ -1,47 +1,62 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit3, Trash2, Users, Search, Copy, Check, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { Plus, Edit3, Users, Search, Copy, Check, Eye, EyeOff, KeyRound, UserX, UserCheck, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar } from '@/components/ui/avatar';
+import { Pagination } from '@/components/shared/Pagination';
+import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
 import { useManagementStore, generatePassword } from '@/store/managementStore';
+import { employeeAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 
 const emptyForm = {
-  firstName: '', lastName: '', email: '', mobile: '', dob: '', designationId: '', joiningDate: '', reportingManagerId: '',
+  employeeId: '', firstName: '', lastName: '', email: '', mobile: '', dob: '', designationId: '', joiningDate: '', reportingManagerId: '',
 };
 
 export default function Employees() {
-  const { employees, designations, addEmployee, updateEmployee, deleteEmployee, resetEmployeePassword, fetchEmployees, fetchDesignations, isLoading } = useManagementStore();
+  const {
+    employees, designations, addEmployee, updateEmployee, deactivateEmployee, activateEmployee,
+    resetEmployeePassword, fetchEmployees, fetchDesignations, isLoading, employeePagination,
+  } = useManagementStore();
 
-  useEffect(() => { fetchEmployees(); fetchDesignations(); }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [statusAction, setStatusAction] = useState<{ id: string; action: 'deactivate' | 'activate' } | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [form, setForm] = useState(emptyForm);
   const [generatedPw, setGeneratedPw] = useState('');
   const [showPwDialog, setShowPwDialog] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
-  const filtered = employees.filter((e) => {
-    const q = search.toLowerCase();
-    const full = `${e.firstName} ${e.lastName}`.toLowerCase();
-    return full.includes(q) || e.email.toLowerCase().includes(q);
-  });
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const loadPage = useCallback((p: number, l: number, s?: string, status?: string) => {
+    fetchEmployees({ page: p, limit: l, search: s || search || undefined, status: status || statusFilter });
+  }, [fetchEmployees, search, statusFilter]);
+
+  useEffect(() => { loadPage(1, limit); fetchDesignations({ limit: 100 }); }, []);
+  useEffect(() => { loadPage(page, limit); }, [page, limit]);
+
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => { setPage(1); loadPage(1, limit, search, statusFilter); }, 300);
+    return () => clearTimeout(t);
+  }, [search, statusFilter]);
 
   const updateField = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
-  // Live password preview
   const previewPw = form.firstName && form.mobile && form.dob
-    ? generatePassword(form.firstName, form.mobile, form.dob)
-    : '';
+    ? generatePassword(form.firstName, form.mobile, form.dob) : '';
 
   const validate = (): string | null => {
     if (!form.firstName.trim()) return 'First name is required';
@@ -57,24 +72,18 @@ export default function Employees() {
   const handleAdd = async () => {
     const err = validate();
     if (err) { toast.error(err); return; }
-    if (employees.some((e) => e.email.toLowerCase() === form.email.trim().toLowerCase())) {
-      toast.error('An employee with this email already exists'); return;
-    }
-    const newEmp = await addEmployee({
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim(),
-      mobile: form.mobile.trim(),
-      dob: form.dob,
-      designationId: form.designationId,
-      joiningDate: form.joiningDate,
-      reportingManagerId: form.reportingManagerId || undefined,
-    });
-    setGeneratedPw(newEmp.generatedPassword);
-    setForm(emptyForm);
-    setShowAdd(false);
-    setShowPwDialog(true);
-    toast.success('Employee created');
+    try {
+      const newEmp = await addEmployee({
+        employeeId: form.employeeId.trim() || undefined,
+        firstName: form.firstName.trim(), lastName: form.lastName.trim(),
+        email: form.email.trim(), mobile: form.mobile.trim(), dob: form.dob,
+        designationId: form.designationId, joiningDate: form.joiningDate,
+        reportingManagerId: form.reportingManagerId || undefined,
+      });
+      setGeneratedPw(newEmp.generatedPassword);
+      setForm(emptyForm); setShowAdd(false); setShowPwDialog(true);
+      toast.success('Employee created');
+    } catch { toast.error('Failed to create employee'); }
   };
 
   const handleEdit = async () => {
@@ -82,13 +91,10 @@ export default function Employees() {
     const err = validate();
     if (err) { toast.error(err); return; }
     await updateEmployee(editId, {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim(),
-      mobile: form.mobile.trim(),
-      dob: form.dob,
-      designationId: form.designationId,
-      joiningDate: form.joiningDate,
+      employeeId: form.employeeId.trim() || undefined,
+      firstName: form.firstName.trim(), lastName: form.lastName.trim(),
+      email: form.email.trim(), mobile: form.mobile.trim(), dob: form.dob,
+      designationId: form.designationId, joiningDate: form.joiningDate,
       reportingManagerId: form.reportingManagerId || null,
     });
     setForm(emptyForm); setEditId(null);
@@ -98,30 +104,33 @@ export default function Employees() {
   const handleResetPassword = async (id: string) => {
     try {
       const pw = await resetEmployeePassword(id);
-      setGeneratedPw(pw);
-      setShowPwDialog(true);
+      setGeneratedPw(pw); setShowPwDialog(true);
       toast.success('Password reset successfully');
-    } catch {
-      toast.error('Failed to reset password');
+    } catch { toast.error('Failed to reset password'); }
+  };
+
+  const handleStatusAction = async () => {
+    if (!statusAction) return;
+    if (statusAction.action === 'deactivate') {
+      await deactivateEmployee(statusAction.id);
+      toast.success('Employee deactivated');
+    } else {
+      await activateEmployee(statusAction.id);
+      toast.success('Employee activated');
     }
+    setStatusAction(null);
   };
 
   const openEdit = (id: string) => {
     const e = employees.find((x) => x.id === id);
     if (!e) return;
     setForm({
+      employeeId: e.employeeId || '',
       firstName: e.firstName, lastName: e.lastName, email: e.email,
       mobile: e.mobile, dob: e.dob, designationId: e.designationId, joiningDate: e.joiningDate,
       reportingManagerId: e.reportingManagerId || '',
     });
     setEditId(id);
-  };
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    await deleteEmployee(deleteId);
-    setDeleteId(null);
-    toast.success('Employee deleted');
   };
 
   const copyPw = () => {
@@ -132,8 +141,25 @@ export default function Employees() {
 
   const getDesignationName = (id: string) => designations.find((d) => d.id === id)?.name || '—';
 
+  // SearchableDropdown fetch function for reporting manager
+  const fetchManagerOptions = async (params: { search: string; page: number; limit: number }) => {
+    const res = await employeeAPI.getAll({ search: params.search, page: params.page, limit: params.limit, status: 'active' });
+    const data = res.data.data;
+    return {
+      rows: (data?.rows || []).filter((u: any) => u.id !== editId).map((u: any) => ({
+        id: u.id,
+        label: `${u.first_name || u.firstName} ${u.last_name || u.lastName}`,
+      })),
+      pagination: data?.pagination || { page: 1, totalPages: 1, total: 0 },
+    };
+  };
+
   const formFields = (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <Label>Employee ID <span className="text-[var(--text-tertiary)]">(auto-generated if empty)</span></Label>
+        <Input placeholder="CT-EMP-0001" value={form.employeeId} onChange={(e) => updateField('employeeId', e.target.value)} />
+      </div>
       <div>
         <Label>First Name *</Label>
         <Input placeholder="Alex" value={form.firstName} onChange={(e) => updateField('firstName', e.target.value)} />
@@ -168,15 +194,16 @@ export default function Employees() {
         <Label>Joining Date *</Label>
         <Input type="date" value={form.joiningDate} onChange={(e) => updateField('joiningDate', e.target.value)} />
       </div>
-      <div>
+      <div className="sm:col-span-2">
         <Label>Reporting Manager <span className="text-[var(--text-tertiary)]">(optional)</span></Label>
-        <select
-          value={form.reportingManagerId} onChange={(e) => updateField('reportingManagerId', e.target.value)}
-          className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-        >
-          <option value="">No Reporting Manager</option>
-          {employees.filter((e) => e.id !== editId).map((e) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
-        </select>
+        <SearchableDropdown
+          value={form.reportingManagerId}
+          onChange={(val) => updateField('reportingManagerId', val)}
+          fetchFn={fetchManagerOptions}
+          getOptionValue={(item) => item.id}
+          getOptionLabel={(item) => item.label}
+          placeholder="Search reporting manager..."
+        />
       </div>
       {!editId && previewPw && (
         <div>
@@ -202,7 +229,7 @@ export default function Employees() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Employees</h1>
           <p className="text-[var(--text-secondary)] text-sm mt-1">
-            Manage employees · {employees.length} total
+            Manage employees · {employeePagination.total} total
           </p>
         </div>
         <Button size="sm" onClick={() => { setForm(emptyForm); setShowPw(false); setShowAdd(true); }}>
@@ -210,13 +237,28 @@ export default function Employees() {
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-        <input
-          type="text" placeholder="Search employees..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
-        />
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+          <input
+            type="text" placeholder="Search employees..."
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-[var(--text-tertiary)]" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="all">All</option>
+          </select>
+        </div>
       </div>
 
       <Card>
@@ -225,60 +267,80 @@ export default function Employees() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border-secondary)]">
+                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Emp ID</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Employee</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Email</th>
-                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Mobile</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Designation</th>
-                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Joining</th>
+                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Reporting Manager</th>
+                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Status</th>
                   <th className="text-right text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <AnimatePresence>
-                  {filtered.map((e) => (
-                    <motion.tr
-                      key={e.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={`${e.firstName} ${e.lastName}`} size="sm" />
-                          <span className="text-sm font-medium text-[var(--text-primary)]">
-                            {e.firstName} {e.lastName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm text-[var(--text-secondary)]">{e.email}</td>
-                      <td className="p-4 text-sm text-[var(--text-secondary)]">{e.mobile}</td>
-                      <td className="p-4 text-sm text-[var(--text-secondary)]">{getDesignationName(e.designationId)}</td>
-                      <td className="p-4 text-sm text-[var(--text-secondary)]">
-                        {new Date(e.joiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors" title="Edit">
-                            <Edit3 className="w-4 h-4" />
+                {employees.map((e) => (
+                  <tr key={e.id} className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
+                    <td className="p-4 text-sm text-brand-600 dark:text-brand-400 font-mono font-medium">
+                      {e.employeeId || '—'}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={`${e.firstName} ${e.lastName}`} size="sm" />
+                        <span className="text-sm font-medium text-[var(--text-primary)]">
+                          {e.firstName} {e.lastName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">{e.email}</td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">{getDesignationName(e.designationId)}</td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">{e.reportingManagerName || '—'}</td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        e.status === 'active'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${e.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        {e.status === 'active' ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors" title="Edit">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleResetPassword(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors" title="Reset Password">
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                        {e.status === 'active' ? (
+                          <button onClick={() => setStatusAction({ id: e.id, action: 'deactivate' })} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Deactivate">
+                            <UserX className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleResetPassword(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-warning-500 hover:bg-warning-50 dark:hover:bg-warning-900/20 transition-colors" title="Reset Password">
-                            <KeyRound className="w-4 h-4" />
+                        ) : (
+                          <button onClick={() => setStatusAction({ id: e.id, action: 'activate' })} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors" title="Activate">
+                            <UserCheck className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteId(e.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-colors" title="Delete">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-            {filtered.length === 0 && (
+            {employees.length === 0 && (
               <div className="text-center py-12">
                 <Users className="w-8 h-8 mx-auto text-[var(--text-tertiary)] mb-2" />
                 <p className="text-sm text-[var(--text-tertiary)]">No employees found</p>
               </div>
             )}
           </div>
+          <Pagination
+            page={employeePagination.page}
+            totalPages={employeePagination.totalPages}
+            total={employeePagination.total}
+            limit={limit}
+            onPageChange={(p) => setPage(p)}
+            onLimitChange={(l) => { setLimit(l); setPage(1); }}
+          />
         </CardContent>
       </Card>
 
@@ -332,16 +394,26 @@ export default function Employees() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      {/* Deactivate/Activate Confirm */}
+      <Dialog open={!!statusAction} onOpenChange={() => setStatusAction(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Employee</DialogTitle>
-            <DialogDescription>This action cannot be undone.</DialogDescription>
+            <DialogTitle>{statusAction?.action === 'deactivate' ? 'Deactivate Employee' : 'Activate Employee'}</DialogTitle>
+            <DialogDescription>
+              {statusAction?.action === 'deactivate'
+                ? 'The employee will no longer be able to login. This can be reversed.'
+                : 'The employee will be able to login again.'}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} isLoading={isLoading}>Delete</Button>
+            <Button variant="outline" onClick={() => setStatusAction(null)}>Cancel</Button>
+            <Button
+              variant={statusAction?.action === 'deactivate' ? 'destructive' : 'default'}
+              onClick={handleStatusAction}
+              isLoading={isLoading}
+            >
+              {statusAction?.action === 'deactivate' ? 'Deactivate' : 'Activate'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

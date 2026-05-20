@@ -41,7 +41,7 @@ const navItems: NavItem[] = [
   { path: '/timesheet', label: 'Timesheet', icon: Clock, roles: ['employee'] },
   { path: '/reports', label: 'Reports', icon: BarChart3, roles: ['employee', 'admin'] },
   { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee'] },
-  { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['admin'] },
+  { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['employee', 'admin'] },
   { path: '/profile', label: 'Profile', icon: User, roles: ['employee', 'admin'] },
 ];
 
@@ -51,6 +51,7 @@ const managementItems: NavItem[] = [
   { path: '/management/projects', label: 'Projects', icon: FolderOpen, roles: ['admin'] },
   { path: '/management/assignments', label: 'Assignments', icon: Link2, roles: ['admin'] },
   { path: '/management/milestones', label: 'Milestones', icon: Target, roles: ['admin'] },
+  { path: '/management/approvals', label: 'Approval Tracker', icon: CheckSquare, roles: ['admin'] },
 ];
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {

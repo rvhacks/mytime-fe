@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { Project, ApprovalEntry, DashboardStats } from '@/types';
-import { projectAPI, timesheetAPI, dashboardAPI } from '@/services/api';
+import type { Project, ApprovalEntry, DashboardStats, PaginationInfo, ManagerApprovalSummary } from '@/types';
+import { projectAPI, timesheetAPI, dashboardAPI, adminApprovalAPI, milestoneAPI } from '@/services/api';
 
 interface AdminStore {
   projects: Project[];
@@ -8,16 +8,38 @@ interface AdminStore {
   dashboardStats: DashboardStats | null;
   isLoading: boolean;
 
-  fetchProjects: () => Promise<void>;
-  addProject: (project: Omit<Project, 'id'>) => Promise<void>;
-  updateProject: (id: string, data: Partial<Project>) => Promise<void>;
+  // Pagination
+  projectPagination: PaginationInfo;
+  milestonePagination: PaginationInfo;
+
+  // Projects
+  fetchProjects: (params?: any) => Promise<void>;
+  addProject: (project: any) => Promise<void>;
+  updateProject: (id: string, data: any) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 
+  // Milestones
+  milestones: any[];
+  fetchMilestones: (params?: any) => Promise<void>;
+
+  // Approvals
   fetchApprovals: () => Promise<void>;
   approveEntries: (entryIds: string[], comments?: string) => Promise<void>;
   rejectEntries: (entryIds: string[], comments: string) => Promise<void>;
 
+  // Admin Approval Manager Dashboard
+  managerApprovals: ManagerApprovalSummary[];
+  fetchManagerApprovals: () => Promise<void>;
+  sendReminders: (managerIds: string[]) => Promise<void>;
+
   fetchDashboardStats: () => Promise<void>;
+}
+
+const defaultPagination: PaginationInfo = { page: 1, limit: 10, total: 0, totalPages: 1 };
+
+function extractPagination(res: any): PaginationInfo {
+  const p = res.data?.data?.pagination;
+  return p ? { page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages } : defaultPagination;
 }
 
 /** Map backend project → frontend Project shape */
@@ -25,10 +47,12 @@ function mapProject(p: any): Project {
   const assignments = p.assignments || [];
   return {
     id: p.id,
+    projectId: p.project_id || '',
     name: p.name,
     code: p.project_code,
     color: p.color || '#6366f1',
     description: p.description || '',
+    partnerProjectId: p.partner_project_id || '',
     startDate: p.start_date || '',
     endDate: p.end_date || '',
     status: p.status,
@@ -78,8 +102,12 @@ function mapApprovalEntry(entry: any): ApprovalEntry {
 export const useAdminStore = create<AdminStore>((set) => ({
   projects: [],
   approvals: [],
+  milestones: [],
   dashboardStats: null,
   isLoading: false,
+  projectPagination: defaultPagination,
+  milestonePagination: defaultPagination,
+  managerApprovals: [],
 
   fetchDashboardStats: async () => {
     try {
@@ -88,15 +116,17 @@ export const useAdminStore = create<AdminStore>((set) => ({
     } catch { /* silent */ }
   },
 
-  fetchProjects: async () => {
+  fetchProjects: async (params?: any) => {
     set({ isLoading: true });
     try {
-      const res = await projectAPI.getAll({ limit: 100 });
+      const res = await projectAPI.getAll(params || { limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ projects: (Array.isArray(rows) ? rows : []).map(mapProject), isLoading: false });
-    } catch {
-      set({ isLoading: false });
-    }
+      set({
+        projects: (Array.isArray(rows) ? rows : []).map(mapProject),
+        projectPagination: extractPagination(res),
+        isLoading: false,
+      });
+    } catch { set({ isLoading: false }); }
   },
 
   addProject: async (projectData) => {
@@ -107,16 +137,19 @@ export const useAdminStore = create<AdminStore>((set) => ({
         name: projectData.name,
         description: projectData.description,
         color: projectData.color,
+        partnerProjectId: projectData.partnerProjectId,
         startDate: projectData.startDate,
         endDate: projectData.endDate,
         status: projectData.status,
       });
-      const res = await projectAPI.getAll({ limit: 100 });
+      const res = await projectAPI.getAll({ limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ projects: (Array.isArray(rows) ? rows : []).map(mapProject), isLoading: false });
-    } catch {
-      set({ isLoading: false });
-    }
+      set({
+        projects: (Array.isArray(rows) ? rows : []).map(mapProject),
+        projectPagination: extractPagination(res),
+        isLoading: false,
+      });
+    } catch { set({ isLoading: false }); }
   },
 
   updateProject: async (id, data) => {
@@ -126,16 +159,19 @@ export const useAdminStore = create<AdminStore>((set) => ({
         name: data.name,
         description: data.description,
         color: data.color,
+        partnerProjectId: data.partnerProjectId,
         startDate: data.startDate,
         endDate: data.endDate,
         status: data.status,
       });
-      const res = await projectAPI.getAll({ limit: 100 });
+      const res = await projectAPI.getAll({ limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ projects: (Array.isArray(rows) ? rows : []).map(mapProject), isLoading: false });
-    } catch {
-      set({ isLoading: false });
-    }
+      set({
+        projects: (Array.isArray(rows) ? rows : []).map(mapProject),
+        projectPagination: extractPagination(res),
+        isLoading: false,
+      });
+    } catch { set({ isLoading: false }); }
   },
 
   deleteProject: async (id) => {
@@ -143,45 +179,63 @@ export const useAdminStore = create<AdminStore>((set) => ({
     try {
       await projectAPI.delete(id);
       set((s) => ({ projects: s.projects.filter((p) => p.id !== id), isLoading: false }));
-    } catch {
-      set({ isLoading: false });
-    }
+    } catch { set({ isLoading: false }); }
   },
 
+  // ---- MILESTONES ----
+  fetchMilestones: async (params?: any) => {
+    set({ isLoading: true });
+    try {
+      const res = await milestoneAPI.getAll(params || { limit: 10 });
+      const rows = res.data.data?.rows || res.data.data || [];
+      set({
+        milestones: Array.isArray(rows) ? rows : [],
+        milestonePagination: extractPagination(res),
+        isLoading: false,
+      });
+    } catch { set({ isLoading: false }); }
+  },
+
+  // ---- APPROVALS (manager view - unchanged) ----
   fetchApprovals: async () => {
     set({ isLoading: true });
     try {
       const res = await timesheetAPI.getPendingApprovals();
       const rows = res.data.data?.rows || res.data.data || [];
       set({ approvals: (Array.isArray(rows) ? rows : []).map(mapApprovalEntry), isLoading: false });
-    } catch {
-      set({ isLoading: false });
-    }
+    } catch { set({ isLoading: false }); }
   },
 
   approveEntries: async (entryIds, comments) => {
     set({ isLoading: true });
     try {
       await timesheetAPI.approvalAction(entryIds, 'approve', comments);
-      set((s) => ({
-        approvals: s.approvals.filter((a) => !entryIds.includes(a.id)),
-        isLoading: false,
-      }));
-    } catch {
-      set({ isLoading: false });
-    }
+      set((s) => ({ approvals: s.approvals.filter((a) => !entryIds.includes(a.id)), isLoading: false }));
+    } catch { set({ isLoading: false }); }
   },
 
   rejectEntries: async (entryIds, comments) => {
     set({ isLoading: true });
     try {
       await timesheetAPI.approvalAction(entryIds, 'reject', comments);
-      set((s) => ({
-        approvals: s.approvals.filter((a) => !entryIds.includes(a.id)),
-        isLoading: false,
-      }));
-    } catch {
+      set((s) => ({ approvals: s.approvals.filter((a) => !entryIds.includes(a.id)), isLoading: false }));
+    } catch { set({ isLoading: false }); }
+  },
+
+  // ---- ADMIN: Manager Approval Dashboard ----
+  fetchManagerApprovals: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await adminApprovalAPI.getManagers();
+      set({ managerApprovals: res.data.data || [], isLoading: false });
+    } catch { set({ isLoading: false }); }
+  },
+
+  sendReminders: async (managerIds) => {
+    set({ isLoading: true });
+    try {
+      await adminApprovalAPI.sendReminders(managerIds);
       set({ isLoading: false });
-    }
+    } catch { set({ isLoading: false }); }
   },
 }));

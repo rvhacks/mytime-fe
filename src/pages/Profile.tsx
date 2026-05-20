@@ -1,9 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Cropper from 'react-easy-crop';
-import type { Area } from 'react-easy-crop';
 import {
-  User,
+  User as UserIcon,
   Mail,
   Phone,
   Briefcase,
@@ -15,13 +13,20 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  Edit3,
+  Save,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/store/authStore';
+import { useManagementStore } from '@/store/managementStore';
 import { userAPI } from '@/services/api';
+import Cropper from 'react-easy-crop';
+import type { Area } from 'react-easy-crop';
 import toast, { Toaster } from 'react-hot-toast';
 
 // ---------------------------------------------------------------------------
@@ -81,6 +86,12 @@ export default function Profile() {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: '', lastName: '', mobile: '', dob: '', designationId: '',
+  });
+  const { designations, fetchDesignations } = useManagementStore();
   const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '');
   const buildAvatarUrl = (url: string | null | undefined) => {
     if (!url) return null;
@@ -97,10 +108,10 @@ export default function Profile() {
       const data = res.data.data;
       if (data?.avatarUrl) {
         setAvatarUrl(buildAvatarUrl(data.avatarUrl));
-        // Also update auth store
         if (user) setUser({ ...user, avatar: data.avatarUrl });
       }
     }).catch(() => { /* ignore */ });
+    fetchDesignations({ limit: 100 });
   }, []);
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
@@ -159,8 +170,50 @@ export default function Profile() {
 
   if (!user) return null;
 
+  const startEditing = () => {
+    const nameParts = (user.name || '').split(' ');
+    setEditForm({
+      firstName: nameParts[0] || '',
+      lastName: nameParts.slice(1).join(' ') || '',
+      mobile: user.phone || '',
+      dob: user.dob || '',
+      designationId: '',
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      await userAPI.updateProfile({
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        mobile: editForm.mobile.trim(),
+        dob: editForm.dob,
+        designationId: editForm.designationId || undefined,
+      });
+      // Refresh user data
+      const res = await userAPI.getProfile();
+      const data = res.data.data;
+      if (data && user) {
+        setUser({
+          ...user,
+          name: `${data.first_name || data.firstName || ''} ${data.last_name || data.lastName || ''}`.trim(),
+          phone: data.mobile || data.phone || '',
+          dob: data.dob || '',
+          designation: data.designation?.name || user.designation,
+        });
+      }
+      setIsEditing(false);
+      toast.success('Profile updated');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update profile');
+    }
+    setIsSaving(false);
+  };
+
   const profileFields = [
-    { label: 'Full Name', value: user.name, icon: User },
+    { label: 'Full Name', value: user.name, icon: UserIcon },
     { label: 'Email Address', value: user.email, icon: Mail },
     { label: 'Phone Number', value: user.phone || '—', icon: Phone },
     { label: 'Designation', value: user.designation || '—', icon: Briefcase },
@@ -237,28 +290,74 @@ export default function Profile() {
       {/* Profile Details */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Personal Information</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Personal Information</CardTitle>
+            {!isEditing ? (
+              <Button size="sm" variant="outline" onClick={startEditing}>
+                <Edit3 className="w-4 h-4" /> Edit
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
+                <Button size="sm" onClick={handleSaveProfile} isLoading={isSaving}>
+                  <Save className="w-4 h-4" /> Save
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {profileFields.map((field, i) => (
-              <motion.div
-                key={field.label}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="space-y-1.5"
-              >
-                <div className="flex items-center gap-2">
-                  <field.icon className="w-4 h-4 text-[var(--text-tertiary)]" />
-                  <label className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
-                    {field.label}
-                  </label>
-                </div>
-                <p className="text-sm text-[var(--text-primary)] pl-6 font-medium">{field.value}</p>
-              </motion.div>
-            ))}
-          </div>
+          {isEditing ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>First Name</Label>
+                <Input value={editForm.firstName} onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Last Name</Label>
+                <Input value={editForm.lastName} onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Phone Number</Label>
+                <Input type="tel" value={editForm.mobile} onChange={(e) => setEditForm(f => ({ ...f, mobile: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Designation</Label>
+                <select
+                  value={editForm.designationId}
+                  onChange={(e) => setEditForm(f => ({ ...f, designationId: e.target.value }))}
+                  className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                >
+                  <option value="">Keep current</option>
+                  {designations.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label>Date of Birth</Label>
+                <Input type="date" value={editForm.dob} onChange={(e) => setEditForm(f => ({ ...f, dob: e.target.value }))} />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {profileFields.map((field, i) => (
+                <motion.div
+                  key={field.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="space-y-1.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <field.icon className="w-4 h-4 text-[var(--text-tertiary)]" />
+                    <label className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
+                      {field.label}
+                    </label>
+                  </div>
+                  <p className="text-sm text-[var(--text-primary)] pl-6 font-medium">{field.value}</p>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

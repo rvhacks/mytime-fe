@@ -31,6 +31,7 @@ export interface Designation {
 
 export interface Employee {
   id: string;
+  employeeId?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -40,16 +41,19 @@ export interface Employee {
   joiningDate: string;
   generatedPassword: string;
   reportingManagerId?: string;
+  reportingManagerName?: string;
   status: 'active' | 'inactive';
   createdAt: string;
 }
 
 export interface Project {
   id: string;
+  projectId?: string;
   name: string;
   code: string;
   color: string;
   description?: string;
+  partnerProjectId?: string;
   startDate?: string;
   endDate?: string;
   status: 'active' | 'completed' | 'on-hold';
@@ -88,6 +92,8 @@ export interface TimesheetRow {
   reviewerName?: string;
   reviewedAt?: string;
   reviewComments?: string;
+  resubmissionCount?: number;
+  rejectionHistory?: Array<{ rejectedAt: string; reviewerName: string; comments: string }>;
   // Populated from includes
   projectName?: string;
   projectCode?: string;
@@ -207,4 +213,15 @@ export interface DashboardStats {
   nonBillableHours: number;
   approvalRate: number;
   pendingApprovals: number;
+  isPersonal?: boolean;
+}
+
+export interface ManagerApprovalSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  employeeId?: string;
+  pendingCount: number;
+  totalDirectReports: number;
 }

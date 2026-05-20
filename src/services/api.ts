@@ -76,6 +76,8 @@ export const employeeAPI = {
   create: (data: any) => api.post('/admin/employees', data),
   update: (id: string, data: any) => api.put(`/admin/employees/${id}`, data),
   resetPassword: (id: string) => api.post(`/admin/employees/${id}/reset-password`),
+  deactivate: (id: string) => api.put(`/admin/employees/${id}/deactivate`),
+  activate: (id: string) => api.put(`/admin/employees/${id}/activate`),
   delete: (id: string) => api.delete(`/admin/employees/${id}`),
 };
 
@@ -108,6 +110,13 @@ export const dashboardAPI = {
   getStats: () => api.get('/admin/dashboard/stats'),
   getActivity: () => api.get('/admin/dashboard/activity'),
   getRoleConstants: () => api.get('/admin/role-constants'),
+};
+
+// ---- ADMIN: APPROVAL MANAGER DASHBOARD ----
+export const adminApprovalAPI = {
+  getManagers: () => api.get('/admin/approvals/managers'),
+  getManagerEntries: (managerId: string, params?: any) => api.get(`/admin/approvals/manager/${managerId}/entries`, { params }),
+  sendReminders: (managerIds: string[]) => api.post('/admin/approvals/remind', { managerIds }),
 };
 
 // ---- TIMESHEETS ----

@@ -1,63 +1,65 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Edit3, Trash2, FolderOpen, Search } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { Plus, Edit3, Trash2, FolderKanban, Search, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { StatusBadge } from '@/components/shared/StatusBadge';
+import { Pagination } from '@/components/shared/Pagination';
+import { ColorPicker } from '@/components/shared/ColorPicker';
 import { useAdminStore } from '@/store/adminStore';
-import { useManagementStore } from '@/store/managementStore';
 import toast, { Toaster } from 'react-hot-toast';
-import { generateId } from '@/lib/utils';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
-
 const emptyForm = {
-  projectId: '', name: '', code: '', description: '', startDate: '', endDate: '',
-  status: 'active' as 'active' | 'completed' | 'on-hold', color: '#6366f1',
+  name: '', code: '', description: '', startDate: '', endDate: '', status: 'active',
+  color: '#6366f1', partnerProjectId: '',
 };
 
-export default function ManageProjects() {
-  const { projects, addProject, updateProject, deleteProject, fetchProjects } = useAdminStore();
-  const { employees, fetchEmployees } = useManagementStore();
+export default function Projects() {
+  const { projects, addProject, updateProject, deleteProject, fetchProjects, isLoading, projectPagination } = useAdminStore();
 
-  useEffect(() => { fetchProjects(); fetchEmployees(); }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [form, setForm] = useState(emptyForm);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
-  const filtered = projects.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) || p.code.toLowerCase().includes(search.toLowerCase())
-  );
+  const loadPage = useCallback((p: number, l: number, s?: string, status?: string) => {
+    fetchProjects({ page: p, limit: l, search: s || search || undefined, status: status || statusFilter });
+  }, [fetchProjects, search, statusFilter]);
 
-  const updateField = (field: string, value: any) => setForm((f) => ({ ...f, [field]: value }));
+  useEffect(() => { loadPage(1, limit); }, []);
+  useEffect(() => { loadPage(page, limit); }, [page, limit]);
 
+  useEffect(() => {
+    const t = setTimeout(() => { setPage(1); loadPage(1, limit, search, statusFilter); }, 300);
+    return () => clearTimeout(t);
+  }, [search, statusFilter]);
 
+  const updateField = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
   const validate = (): string | null => {
-    if (!form.name.trim()) return 'Project name is required';
+    if (!form.name.trim()) return 'Name is required';
+    if (!form.code.trim()) return 'Code is required';
+    if (!form.startDate) return 'Start date is required';
+    if (!form.endDate) return 'End date is required';
     return null;
   };
 
   const handleAdd = async () => {
     const err = validate();
     if (err) { toast.error(err); return; }
-    const id = form.projectId.trim() || String(Math.floor(10000000 + Math.random() * 90000000));
     await addProject({
-      name: form.name.trim(),
-      code: form.code.toUpperCase().trim(),
-      color: form.color,
-      description: form.description.trim(),
-      startDate: form.startDate,
-      endDate: form.endDate,
-      status: form.status,
-      assignedEmployees: [],
+      name: form.name.trim(), code: form.code.trim().toUpperCase(),
+      description: form.description.trim(), color: form.color,
+      partnerProjectId: form.partnerProjectId.trim() || undefined,
+      startDate: form.startDate, endDate: form.endDate, status: form.status,
     });
     setForm(emptyForm); setShowAdd(false);
     toast.success('Project created');
@@ -68,13 +70,9 @@ export default function ManageProjects() {
     const err = validate();
     if (err) { toast.error(err); return; }
     await updateProject(editId, {
-      name: form.name.trim(),
-      code: form.code.toUpperCase().trim(),
-      color: form.color,
-      description: form.description.trim(),
-      startDate: form.startDate,
-      endDate: form.endDate,
-      status: form.status,
+      name: form.name.trim(), description: form.description.trim(),
+      color: form.color, partnerProjectId: form.partnerProjectId.trim() || undefined,
+      startDate: form.startDate, endDate: form.endDate, status: form.status,
     });
     setForm(emptyForm); setEditId(null);
     toast.success('Project updated');
@@ -84,9 +82,9 @@ export default function ManageProjects() {
     const p = projects.find((x) => x.id === id);
     if (!p) return;
     setForm({
-      projectId: p.id, name: p.name, code: p.code, description: p.description || '',
+      name: p.name, code: p.code, description: p.description || '',
       startDate: p.startDate || '', endDate: p.endDate || '', status: p.status,
-      color: p.color,
+      color: p.color, partnerProjectId: p.partnerProjectId || '',
     });
     setEditId(id);
   };
@@ -98,20 +96,41 @@ export default function ManageProjects() {
     toast.success('Project archived');
   };
 
+  const statusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      'active': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400',
+      'on-hold': 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
+      'completed': 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+    };
+    return (
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] || ''}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}
+      </span>
+    );
+  };
+
   const formFields = (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label>Project ID <span className="text-[var(--text-tertiary)]">(optional, auto-gen if empty)</span></Label>
-          <Input placeholder="Auto-generated" value={form.projectId} onChange={(e) => updateField('projectId', e.target.value)} disabled={!!editId} />
-        </div>
+        {!editId && (
+          <div className="sm:col-span-2">
+            <Label>Project ID <span className="text-[var(--text-tertiary)]">(auto-generated)</span></Label>
+            <div className="h-10 px-3 rounded-xl border border-dashed border-brand-300 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10 flex items-center">
+              <span className="text-sm text-brand-600 dark:text-brand-400 font-mono">Will be auto-generated on create (e.g., CT-260001)</span>
+            </div>
+          </div>
+        )}
         <div>
           <Label>Project Name *</Label>
           <Input placeholder="Phoenix Platform" value={form.name} onChange={(e) => updateField('name', e.target.value)} />
         </div>
         <div>
-          <Label>Code *</Label>
-          <Input placeholder="PHX" value={form.code} onChange={(e) => updateField('code', e.target.value)} maxLength={6} />
+          <Label>Code * <span className="text-[var(--text-tertiary)]">(3-char short code)</span></Label>
+          <Input placeholder="PHX" value={form.code} onChange={(e) => updateField('code', e.target.value.toUpperCase())} maxLength={6} disabled={!!editId} />
+        </div>
+        <div>
+          <Label>Partner Project ID <span className="text-[var(--text-tertiary)]">(optional)</span></Label>
+          <Input placeholder="EXT-12345" value={form.partnerProjectId} onChange={(e) => updateField('partnerProjectId', e.target.value)} />
         </div>
         <div>
           <Label>Status *</Label>
@@ -143,13 +162,8 @@ export default function ManageProjects() {
       </div>
       <div>
         <Label>Color</Label>
-        <div className="flex items-center gap-2 mt-1">
-          {COLORS.map((c) => (
-            <button key={c} onClick={() => updateField('color', c)}
-              className={`w-7 h-7 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-2 ring-brand-500 scale-110' : 'hover:scale-110'}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
+        <div className="mt-1">
+          <ColorPicker value={form.color} onChange={(c) => updateField('color', c)} />
         </div>
       </div>
     </div>
@@ -163,21 +177,37 @@ export default function ManageProjects() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Projects</h1>
           <p className="text-[var(--text-secondary)] text-sm mt-1">
-            Manage projects · {projects.length} total
+            Manage projects · {projectPagination.total} total
           </p>
         </div>
         <Button size="sm" onClick={() => { setForm(emptyForm); setShowAdd(true); }}>
-          <Plus className="w-4 h-4" /> Create Project
+          <Plus className="w-4 h-4" /> Add Project
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-        <input
-          type="text" placeholder="Search projects..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
-        />
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+          <input
+            type="text" placeholder="Search by name, code, or project ID..."
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-[var(--text-tertiary)]" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="on-hold">On Hold</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
       </div>
 
       <Card>
@@ -186,60 +216,60 @@ export default function ManageProjects() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border-secondary)]">
+                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Project ID</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Project</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Code</th>
+                  <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Status</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Duration</th>
-                  <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Status</th>
-                  <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Team</th>
                   <th className="text-right text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <AnimatePresence>
-                  {filtered.map((p) => (
-                    <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
-                          <span className="text-sm font-medium text-[var(--text-primary)]">{p.name}</span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-mono font-medium" style={{ backgroundColor: `${p.color}15`, color: p.color }}>
-                          {p.code}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-[var(--text-secondary)]">
-                        {p.startDate ? new Date(p.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'} – {p.endDate ? new Date(p.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
-                      </td>
-                      <td className="p-4 text-center"><StatusBadge status={p.status} /></td>
-                      <td className="p-4 text-center text-sm text-[var(--text-secondary)]">
-                        {(p.assignedEmployees || []).length}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(p.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteId(p.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
+                {projects.map((p) => (
+                  <tr key={p.id} className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
+                    <td className="p-4 text-sm text-brand-600 dark:text-brand-400 font-mono font-medium">
+                      {p.projectId || '—'}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)] font-mono">{p.code}</td>
+                    <td className="p-4">{statusBadge(p.status)}</td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">
+                      {p.startDate && p.endDate ? `${new Date(p.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(p.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '—'}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(p.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors" title="Edit">
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setDeleteId(p.id)} className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Archive">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-            {filtered.length === 0 && (
+            {projects.length === 0 && (
               <div className="text-center py-12">
-                <FolderOpen className="w-8 h-8 mx-auto text-[var(--text-tertiary)] mb-2" />
+                <FolderKanban className="w-8 h-8 mx-auto text-[var(--text-tertiary)] mb-2" />
                 <p className="text-sm text-[var(--text-tertiary)]">No projects found</p>
               </div>
             )}
           </div>
+          <Pagination
+            page={projectPagination.page}
+            totalPages={projectPagination.totalPages}
+            total={projectPagination.total}
+            limit={limit}
+            onPageChange={(p) => setPage(p)}
+            onLimitChange={(l) => { setLimit(l); setPage(1); }}
+          />
         </CardContent>
       </Card>
 
@@ -247,13 +277,13 @@ export default function ManageProjects() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create Project</DialogTitle>
-            <DialogDescription>Add a new project with details and RM assignment</DialogDescription>
+            <DialogTitle>Add Project</DialogTitle>
+            <DialogDescription>Create a new project. Project ID is auto-generated.</DialogDescription>
           </DialogHeader>
           {formFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={handleAdd} isLoading={useAdminStore.getState().isLoading}>Create Project</Button>
+            <Button onClick={handleAdd} isLoading={isLoading}>Create Project</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -268,21 +298,21 @@ export default function ManageProjects() {
           {formFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditId(null)}>Cancel</Button>
-            <Button onClick={handleEdit} isLoading={useAdminStore.getState().isLoading}>Update</Button>
+            <Button onClick={handleEdit} isLoading={isLoading}>Update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete */}
+      {/* Delete Confirm */}
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Archive Project</DialogTitle>
-            <DialogDescription>This project will be archived. All timesheets, reports, and assignments will be preserved.</DialogDescription>
+            <DialogDescription>This project will be soft-deleted (archived).</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Archive</Button>
+            <Button variant="destructive" onClick={handleDelete} isLoading={isLoading}>Archive</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

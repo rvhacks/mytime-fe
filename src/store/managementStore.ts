@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Designation, Employee, ProjectAssignment } from '@/types';
+import type { Designation, Employee, ProjectAssignment, PaginationInfo } from '@/types';
 import { designationAPI, employeeAPI, assignmentAPI } from '@/services/api';
 
 // ========================================
@@ -20,24 +20,33 @@ interface ManagementStore {
   assignments: ProjectAssignment[];
   isLoading: boolean;
 
+  // Pagination state per entity
+  designationPagination: PaginationInfo;
+  employeePagination: PaginationInfo;
+  assignmentPagination: PaginationInfo;
+
   // Designations
-  fetchDesignations: () => Promise<void>;
+  fetchDesignations: (params?: any) => Promise<void>;
   addDesignation: (name: string) => Promise<void>;
   updateDesignation: (id: string, name: string) => Promise<void>;
   deleteDesignation: (id: string) => Promise<void>;
 
   // Employees
-  fetchEmployees: () => Promise<void>;
-  addEmployee: (data: Omit<Employee, 'id' | 'generatedPassword' | 'status' | 'createdAt'>) => Promise<Employee>;
-  updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
+  fetchEmployees: (params?: any) => Promise<void>;
+  addEmployee: (data: any) => Promise<Employee>;
+  updateEmployee: (id: string, data: any) => Promise<void>;
   resetEmployeePassword: (id: string) => Promise<string>;
+  deactivateEmployee: (id: string) => Promise<void>;
+  activateEmployee: (id: string) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
 
   // Assignments
-  fetchAssignments: () => Promise<void>;
+  fetchAssignments: (params?: any) => Promise<void>;
   addAssignment: (data: Omit<ProjectAssignment, 'id' | 'assignedAt'>) => Promise<void>;
   deleteAssignment: (id: string) => Promise<void>;
 }
+
+const defaultPagination: PaginationInfo = { page: 1, limit: 10, total: 0, totalPages: 1 };
 
 function mapDesignation(d: any): Designation {
   const raw = d.created_at || d.createdAt || '';
@@ -45,8 +54,10 @@ function mapDesignation(d: any): Designation {
 }
 
 function mapEmployee(u: any): Employee {
+  const rm = u.reportingManager || u.reporting_manager;
   return {
     id: u.id,
+    employeeId: u.employee_id || u.employeeId || '',
     firstName: u.first_name || u.firstName || '',
     lastName: u.last_name || u.lastName || '',
     email: u.email,
@@ -56,6 +67,7 @@ function mapEmployee(u: any): Employee {
     joiningDate: u.joining_date || u.joiningDate || '',
     generatedPassword: '',
     reportingManagerId: u.reporting_manager_id || u.reportingManagerId || '',
+    reportingManagerName: rm ? `${rm.first_name || rm.firstName || ''} ${rm.last_name || rm.lastName || ''}`.trim() : '',
     status: u.status || 'active',
     createdAt: (u.created_at || u.createdAt || '').toString().slice(0, 10),
   };
@@ -71,19 +83,31 @@ function mapAssignment(a: any): ProjectAssignment {
   };
 }
 
+function extractPagination(res: any): PaginationInfo {
+  const p = res.data?.data?.pagination;
+  return p ? { page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages } : defaultPagination;
+}
+
 export const useManagementStore = create<ManagementStore>((set) => ({
   designations: [],
   employees: [],
   assignments: [],
   isLoading: false,
+  designationPagination: defaultPagination,
+  employeePagination: defaultPagination,
+  assignmentPagination: defaultPagination,
 
   // ---- DESIGNATIONS ----
-  fetchDesignations: async () => {
+  fetchDesignations: async (params?: any) => {
     set({ isLoading: true });
     try {
-      const res = await designationAPI.getAll({ limit: 100 });
+      const res = await designationAPI.getAll(params || { limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ designations: (Array.isArray(rows) ? rows : []).map(mapDesignation), isLoading: false });
+      set({
+        designations: (Array.isArray(rows) ? rows : []).map(mapDesignation),
+        designationPagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 
@@ -91,9 +115,13 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await designationAPI.create(name);
-      const res = await designationAPI.getAll({ limit: 100 });
+      const res = await designationAPI.getAll({ limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ designations: (Array.isArray(rows) ? rows : []).map(mapDesignation), isLoading: false });
+      set({
+        designations: (Array.isArray(rows) ? rows : []).map(mapDesignation),
+        designationPagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 
@@ -101,9 +129,13 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await designationAPI.update(id, name);
-      const res = await designationAPI.getAll({ limit: 100 });
+      const res = await designationAPI.getAll({ limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ designations: (Array.isArray(rows) ? rows : []).map(mapDesignation), isLoading: false });
+      set({
+        designations: (Array.isArray(rows) ? rows : []).map(mapDesignation),
+        designationPagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 
@@ -116,12 +148,16 @@ export const useManagementStore = create<ManagementStore>((set) => ({
   },
 
   // ---- EMPLOYEES ----
-  fetchEmployees: async () => {
+  fetchEmployees: async (params?: any) => {
     set({ isLoading: true });
     try {
-      const res = await employeeAPI.getAll({ limit: 100 });
+      const res = await employeeAPI.getAll(params || { limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ employees: (Array.isArray(rows) ? rows : []).map(mapEmployee), isLoading: false });
+      set({
+        employees: (Array.isArray(rows) ? rows : []).map(mapEmployee),
+        employeePagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 
@@ -132,9 +168,13 @@ export const useManagementStore = create<ManagementStore>((set) => ({
       const pw = res.data.data.generatedPassword || generatePassword(data.firstName, data.mobile, data.dob);
       const newEmp = mapEmployee(res.data.data.user);
       newEmp.generatedPassword = pw;
-      const listRes = await employeeAPI.getAll({ limit: 100 });
+      const listRes = await employeeAPI.getAll({ limit: 10 });
       const rows = listRes.data.data?.rows || listRes.data.data || [];
-      set({ employees: (Array.isArray(rows) ? rows : []).map(mapEmployee), isLoading: false });
+      set({
+        employees: (Array.isArray(rows) ? rows : []).map(mapEmployee),
+        employeePagination: extractPagination(listRes),
+        isLoading: false,
+      });
       return newEmp;
     } catch {
       set({ isLoading: false });
@@ -146,9 +186,13 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await employeeAPI.update(id, data);
-      const res = await employeeAPI.getAll({ limit: 100 });
+      const res = await employeeAPI.getAll({ limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ employees: (Array.isArray(rows) ? rows : []).map(mapEmployee), isLoading: false });
+      set({
+        employees: (Array.isArray(rows) ? rows : []).map(mapEmployee),
+        employeePagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 
@@ -161,6 +205,28 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     }
   },
 
+  deactivateEmployee: async (id) => {
+    set({ isLoading: true });
+    try {
+      await employeeAPI.deactivate(id);
+      set((s) => ({
+        employees: s.employees.map((e) => e.id === id ? { ...e, status: 'inactive' as const } : e),
+        isLoading: false,
+      }));
+    } catch { set({ isLoading: false }); }
+  },
+
+  activateEmployee: async (id) => {
+    set({ isLoading: true });
+    try {
+      await employeeAPI.activate(id);
+      set((s) => ({
+        employees: s.employees.map((e) => e.id === id ? { ...e, status: 'active' as const } : e),
+        isLoading: false,
+      }));
+    } catch { set({ isLoading: false }); }
+  },
+
   deleteEmployee: async (id) => {
     set({ isLoading: true });
     try {
@@ -170,12 +236,16 @@ export const useManagementStore = create<ManagementStore>((set) => ({
   },
 
   // ---- ASSIGNMENTS ----
-  fetchAssignments: async () => {
+  fetchAssignments: async (params?: any) => {
     set({ isLoading: true });
     try {
-      const res = await assignmentAPI.getAll({ limit: 100 });
+      const res = await assignmentAPI.getAll(params || { limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ assignments: (Array.isArray(rows) ? rows : []).map(mapAssignment), isLoading: false });
+      set({
+        assignments: (Array.isArray(rows) ? rows : []).map(mapAssignment),
+        assignmentPagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 
@@ -183,9 +253,13 @@ export const useManagementStore = create<ManagementStore>((set) => ({
     set({ isLoading: true });
     try {
       await assignmentAPI.create({ userId: data.employeeId, projectId: data.projectId, role: data.role });
-      const res = await assignmentAPI.getAll({ limit: 100 });
+      const res = await assignmentAPI.getAll({ limit: 10 });
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ assignments: (Array.isArray(rows) ? rows : []).map(mapAssignment), isLoading: false });
+      set({
+        assignments: (Array.isArray(rows) ? rows : []).map(mapAssignment),
+        assignmentPagination: extractPagination(res),
+        isLoading: false,
+      });
     } catch { set({ isLoading: false }); }
   },
 

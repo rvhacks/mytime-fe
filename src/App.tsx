@@ -26,6 +26,7 @@ import Employees from '@/pages/management/Employees';
 import ManageProjects from '@/pages/management/Projects';
 import Assignments from '@/pages/management/Assignments';
 import Milestones from '@/pages/management/Milestones';
+import AdminApprovals from '@/pages/management/AdminApprovals';
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, user } = useAuthStore();
@@ -123,6 +124,10 @@ export default function App() {
           <Route
             path="/management/milestones"
             element={<ProtectedRoute allowedRoles={['admin']}><Milestones /></ProtectedRoute>}
+          />
+          <Route
+            path="/management/approvals"
+            element={<ProtectedRoute allowedRoles={['admin']}><AdminApprovals /></ProtectedRoute>}
           />
         </Route>
 
