@@ -57,6 +57,7 @@ function mapProject(p: any): Project {
     endDate: p.end_date || '',
     status: p.status,
     assignedEmployees: assignments.map((a: any) => a.user_id),
+    teamCount: assignments.length,
   };
 }
 
@@ -96,6 +97,8 @@ function mapApprovalEntry(entry: any): ApprovalEntry {
     totalHours,
     status: entry.status || 'submitted',
     submittedAt: entry.submitted_at || '',
+    resubmissionCount: entry.resubmission_count || 0,
+    rejectionHistory: entry.rejection_history || [],
   };
 }
 

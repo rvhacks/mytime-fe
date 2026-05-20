@@ -158,7 +158,7 @@ export default function Employees() {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label>Employee ID <span className="text-[var(--text-tertiary)]">(auto-generated if empty)</span></Label>
-        <Input placeholder="CT-EMP-0001" value={form.employeeId} onChange={(e) => updateField('employeeId', e.target.value)} />
+        <Input placeholder={`CT${new Date().getFullYear()}-0001`} value={form.employeeId} onChange={(e) => updateField('employeeId', e.target.value)} />
       </div>
       <div>
         <Label>First Name *</Label>

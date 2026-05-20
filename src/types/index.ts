@@ -58,6 +58,7 @@ export interface Project {
   endDate?: string;
   status: 'active' | 'completed' | 'on-hold';
   assignedEmployees: string[];
+  teamCount?: number;
 }
 
 export interface Milestone {
@@ -159,6 +160,8 @@ export interface ApprovalEntry {
   totalHours: number;
   status: EntryStatus;
   submittedAt: string;
+  resubmissionCount?: number;
+  rejectionHistory?: Array<{ rejectedAt: string; reviewerName: string; comments: string }>;
 }
 
 // Legacy compatibility

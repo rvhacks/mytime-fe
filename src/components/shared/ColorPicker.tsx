@@ -134,7 +134,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       />
 
       {isOpen && (
-        <div className="absolute z-50 top-full mt-2 left-0 bg-[var(--card-bg)] border border-[var(--border-secondary)] rounded-xl shadow-2xl p-3 w-[260px]">
+        <div className="absolute z-50 bottom-full mb-2 left-0 bg-[var(--card-bg)] border border-[var(--border-secondary)] rounded-xl shadow-2xl p-3 w-[260px]">
           {/* Saturation/Lightness gradient */}
           <div
             ref={gradientRef}

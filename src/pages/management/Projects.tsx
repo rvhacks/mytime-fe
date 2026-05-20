@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit3, Trash2, FolderKanban, Search, Filter } from 'lucide-react';
+import { Plus, Edit3, Trash2, FolderKanban, Search, Filter, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -220,6 +220,7 @@ export default function Projects() {
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Project</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Code</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Status</th>
+                  <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Team</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Duration</th>
                   <th className="text-right text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Actions</th>
                 </tr>
@@ -238,6 +239,12 @@ export default function Projects() {
                     </td>
                     <td className="p-4 text-sm text-[var(--text-secondary)] font-mono">{p.code}</td>
                     <td className="p-4">{statusBadge(p.status)}</td>
+                    <td className="p-4 text-center">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-medium">
+                        <Users className="w-3.5 h-3.5" />
+                        {p.teamCount || 0}
+                      </div>
+                    </td>
                     <td className="p-4 text-sm text-[var(--text-secondary)]">
                       {p.startDate && p.endDate ? `${new Date(p.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(p.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '—'}
                     </td>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Link2, Search } from 'lucide-react';
+import { Plus, Trash2, Link2, Search, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,8 @@ export default function Assignments() {
   const [form, setForm] = useState(emptyForm);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [filterEmpId, setFilterEmpId] = useState<string>('');
+  const [filterProjId, setFilterProjId] = useState<string>('');
 
   const loadPage = useCallback((p: number, l: number) => {
     fetchAssignments({ page: p, limit: l });
@@ -71,12 +73,15 @@ export default function Assignments() {
   };
   const getProjName = (id: string) => projects.find((x) => x.id === id)?.name || id;
 
-  const filteredAssignments = search
-    ? assignments.filter((a) => {
-        const q = search.toLowerCase();
-        return getEmpName(a.employeeId).toLowerCase().includes(q) || getProjName(a.projectId).toLowerCase().includes(q);
-      })
-    : assignments;
+  const filteredAssignments = assignments.filter((a) => {
+    if (filterEmpId && a.employeeId !== filterEmpId) return false;
+    if (filterProjId && a.projectId !== filterProjId) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return getEmpName(a.employeeId).toLowerCase().includes(q) || getProjName(a.projectId).toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   // Paginated search for employee dropdown
   const fetchEmpOptions = async (params: { search: string; page: number; limit: number }) => {
@@ -114,13 +119,40 @@ export default function Assignments() {
         </Button>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-        <input
-          type="text" placeholder="Filter assignments..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
-        />
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+          <input
+            type="text" placeholder="Search assignments..."
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 transition-all"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+          <div className="w-52">
+            <SearchableDropdown
+              value={filterEmpId}
+              onChange={(val) => setFilterEmpId(val)}
+              placeholder="Filter by employee..."
+              fetchFn={fetchEmpOptions}
+            />
+          </div>
+          <div className="w-52">
+            <SearchableDropdown
+              value={filterProjId}
+              onChange={(val) => setFilterProjId(val)}
+              placeholder="Filter by project..."
+              fetchFn={fetchProjOptions}
+            />
+          </div>
+          {(filterEmpId || filterProjId) && (
+            <button
+              onClick={() => { setFilterEmpId(''); setFilterProjId(''); }}
+              className="text-xs text-brand-500 hover:underline whitespace-nowrap"
+            >Clear filters</button>
+          )}
+        </div>
       </div>
 
       <Card>
