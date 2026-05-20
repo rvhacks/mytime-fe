@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Pagination } from '@/components/shared/Pagination';
 import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
 import { useManagementStore, generatePassword } from '@/store/managementStore';
-import { employeeAPI } from '@/services/api';
+import { employeeAPI, designationAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -149,7 +149,19 @@ export default function Employees() {
       rows: (data?.rows || []).filter((u: any) => u.id !== editId).map((u: any) => ({
         id: u.id,
         label: `${u.first_name || u.firstName} ${u.last_name || u.lastName}`,
-      })),
+      })).sort((a: any, b: any) => a.label.localeCompare(b.label)),
+      pagination: data?.pagination || { page: 1, totalPages: 1, total: 0 },
+    };
+  };
+
+  const fetchDesignationOptions = async (params: { search: string; page: number; limit: number }) => {
+    const res = await designationAPI.getAll({ search: params.search, page: params.page, limit: params.limit });
+    const data = res.data.data;
+    return {
+      rows: (data?.rows || []).map((d: any) => ({
+        id: d.id,
+        label: d.name,
+      })).sort((a: any, b: any) => a.label.localeCompare(b.label)),
       pagination: data?.pagination || { page: 1, totalPages: 1, total: 0 },
     };
   };
@@ -158,7 +170,7 @@ export default function Employees() {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label>Employee ID <span className="text-[var(--text-tertiary)]">(auto-generated if empty)</span></Label>
-        <Input placeholder={`CT${new Date().getFullYear()}-0001`} value={form.employeeId} onChange={(e) => updateField('employeeId', e.target.value)} />
+        <Input placeholder={`CT${String(new Date().getFullYear()).slice(-2)}-0001`} value={form.employeeId} onChange={(e) => updateField('employeeId', e.target.value)} />
       </div>
       <div>
         <Label>First Name *</Label>
@@ -182,13 +194,14 @@ export default function Employees() {
       </div>
       <div>
         <Label>Designation *</Label>
-        <select
-          value={form.designationId} onChange={(e) => updateField('designationId', e.target.value)}
-          className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-        >
-          <option value="">Select designation</option>
-          {designations.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
+        <SearchableDropdown
+          value={form.designationId}
+          onChange={(val) => updateField('designationId', val)}
+          fetchFn={fetchDesignationOptions}
+          getOptionValue={(item) => item.id}
+          getOptionLabel={(item) => item.label}
+          placeholder="Search designation..."
+        />
       </div>
       <div>
         <Label>Joining Date *</Label>
@@ -263,9 +276,9 @@ export default function Employees() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-[var(--card-bg)]">
                 <tr className="border-b border-[var(--border-secondary)]">
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Emp ID</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Employee</th>

@@ -94,11 +94,19 @@ export default function Profile() {
   const { designations, fetchDesignations } = useManagementStore();
   const API_HOST = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '');
   const buildAvatarUrl = (url: string | null | undefined) => {
-    if (!url) return null;
+    if (!url || url.trim() === '') return null;
+    // Already a full URL
     if (url.startsWith('http')) return url;
-    // Filter out absolute filesystem paths (e.g., /Users/... or C:\...)
-    if (url.startsWith('/Users/') || url.startsWith('/home/') || url.includes(':\\')) return null;
-    return `${API_HOST}${url}`;
+    // Absolute filesystem path — extract just the filename
+    if (url.startsWith('/Users/') || url.startsWith('/home/') || url.includes(':\\')) {
+      const parts = url.split('/');
+      const filename = parts[parts.length - 1];
+      return `${API_HOST}/uploads/avatars/${filename}`;
+    }
+    // Relative URL like /uploads/avatars/xxx.jpg
+    if (url.startsWith('/')) return `${API_HOST}${url}`;
+    // Raw filename like uuid_hash.jpg (no path prefix)
+    return `${API_HOST}/uploads/avatars/${url}`;
   };
   const [avatarUrl, setAvatarUrl] = useState<string | null>(buildAvatarUrl(user?.avatar));
 
@@ -106,9 +114,10 @@ export default function Profile() {
   useEffect(() => {
     userAPI.getProfile().then((res) => {
       const data = res.data.data;
-      if (data?.avatarUrl) {
-        setAvatarUrl(buildAvatarUrl(data.avatarUrl));
-        if (user) setUser({ ...user, avatar: data.avatarUrl });
+      const freshUrl = data?.avatarUrl || data?.avatar_path || '';
+      if (freshUrl) {
+        setAvatarUrl(buildAvatarUrl(freshUrl));
+        if (user) setUser({ ...user, avatar: data.avatarUrl || freshUrl });
       }
     }).catch(() => { /* ignore */ });
     fetchDesignations({ limit: 100 });

@@ -50,6 +50,8 @@ function mapTimesheetRow(e: any): TimesheetRow {
     projectCode: e.project?.project_code || '',
     projectColor: e.project?.color || '',
     milestoneName: e.milestone?.name || '',
+    resubmissionCount: e.resubmission_count || 0,
+    rejectionHistory: e.rejection_history || [],
   };
 }
 

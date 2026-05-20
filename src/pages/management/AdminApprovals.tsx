@@ -4,6 +4,7 @@ import { Users, Clock, Send, ChevronDown, ChevronRight, AlertTriangle } from 'lu
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { Pagination } from '@/components/shared/Pagination';
 import { useAdminStore } from '@/store/adminStore';
 import { adminApprovalAPI } from '@/services/api';
 import type { ManagerApprovalSummary } from '@/types';
@@ -15,6 +16,8 @@ export default function AdminApprovals() {
   const [expandedManager, setExpandedManager] = useState<string | null>(null);
   const [drillDownData, setDrillDownData] = useState<any>(null);
   const [drillLoading, setDrillLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   useEffect(() => { fetchManagerApprovals(); }, []);
 
@@ -61,6 +64,8 @@ export default function AdminApprovals() {
   };
 
   const totalPending = managerApprovals.reduce((sum, m) => sum + m.pendingCount, 0);
+  const totalPages = Math.ceil(managerApprovals.length / limit);
+  const paginatedManagers = managerApprovals.slice((page - 1) * limit, page * limit);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -124,9 +129,9 @@ export default function AdminApprovals() {
       {/* Manager Table */}
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-[var(--card-bg)]">
                 <tr className="border-b border-[var(--border-secondary)]">
                   <th className="text-left p-4 w-10">
                     <input
@@ -144,7 +149,7 @@ export default function AdminApprovals() {
                 </tr>
               </thead>
               <tbody>
-                {managerApprovals.map((m) => (
+                {paginatedManagers.map((m) => (
                   <>
                     <tr key={m.id} className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
                       <td className="p-4">
@@ -234,6 +239,15 @@ export default function AdminApprovals() {
           </div>
         </CardContent>
       </Card>
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          totalItems={managerApprovals.length}
+          itemsPerPage={limit}
+        />
+      )}
     </motion.div>
   );
 }

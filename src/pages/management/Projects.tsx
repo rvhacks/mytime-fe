@@ -212,9 +212,9 @@ export default function Projects() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-[var(--card-bg)]">
                 <tr className="border-b border-[var(--border-secondary)]">
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Project ID</th>
                   <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4">Project</th>

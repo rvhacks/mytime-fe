@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Copy,
   Loader2,
+  RotateCcw,
+  History,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -529,7 +531,34 @@ export default function Timesheet() {
                             </td>
                             {/* Per-Row Status Badge */}
                             <td className="p-3 text-center">
-                              <StatusBadge status={row.status || 'draft'} />
+                              <div className="flex flex-col items-center gap-1">
+                                <StatusBadge status={row.status || 'draft'} />
+                                {(row.resubmissionCount || 0) > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" title="This entry was resubmitted after rejection">
+                                    <RotateCcw className="w-2.5 h-2.5" />
+                                    Resubmitted
+                                  </span>
+                                )}
+                                {row.rejectionHistory && row.rejectionHistory.length > 0 && (
+                                  <details className="group relative">
+                                    <summary className="inline-flex items-center gap-0.5 cursor-pointer text-[9px] text-red-500 hover:text-red-700 dark:text-red-400">
+                                      <History className="w-2.5 h-2.5" />
+                                      {row.rejectionHistory.length} rejection{row.rejectionHistory.length > 1 ? 's' : ''}
+                                    </summary>
+                                    <div className="absolute z-50 right-0 mt-1 w-64 p-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-secondary)] shadow-xl space-y-1.5 text-left">
+                                      {row.rejectionHistory.map((rh, idx) => (
+                                        <div key={idx} className="p-2 rounded bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
+                                          <div className="flex justify-between items-center mb-0.5">
+                                            <span className="text-[10px] font-medium text-red-700 dark:text-red-400">{rh.reviewerName || 'Manager'}</span>
+                                            <span className="text-[9px] text-red-500">{rh.rejectedAt ? new Date(rh.rejectedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+                                          </div>
+                                          <p className="text-[10px] text-red-600 dark:text-red-300">{rh.comments || 'No remarks'}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </details>
+                                )}
+                              </div>
                             </td>
                             {/* Delete — only for editable rows */}
                             {!isGlobalLocked && (

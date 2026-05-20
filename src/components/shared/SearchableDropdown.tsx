@@ -162,6 +162,17 @@ export function SearchableDropdown({
     setSelectedLabel('');
   };
 
+  // Auto-position: open upward if not enough space below
+  const [openUpward, setOpenUpward] = useState(false);
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < 340 && spaceAbove > spaceBelow);
+    }
+  }, [isOpen]);
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Trigger Button */}
@@ -185,7 +196,7 @@ export function SearchableDropdown({
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute z-50 top-full mt-1 left-0 w-full min-w-[240px] bg-[var(--card-bg)] border border-[var(--border-secondary)] rounded-xl shadow-xl overflow-hidden"
+        <div className={`absolute z-50 ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-full min-w-[240px] bg-[var(--card-bg)] border border-[var(--border-secondary)] rounded-xl shadow-xl overflow-hidden`}
           style={{ maxHeight: 320 }}
         >
           {/* Search input */}

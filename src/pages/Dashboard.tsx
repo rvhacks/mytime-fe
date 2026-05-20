@@ -13,7 +13,6 @@ import {
   User as UserIcon,
   DollarSign,
   Receipt,
-  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
@@ -71,30 +70,6 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-const iconMap: Record<string, React.ReactNode> = {
-  send: <Send className="w-4 h-4" />,
-  clock: <Clock className="w-4 h-4" />,
-  'check-circle': <CheckCircle2 className="w-4 h-4" />,
-  'folder-plus': <FolderPlus className="w-4 h-4" />,
-  user: <UserIcon className="w-4 h-4" />,
-  timesheet: <Send className="w-4 h-4" />,
-  project: <FolderPlus className="w-4 h-4" />,
-  employee: <UserIcon className="w-4 h-4" />,
-};
-
-// ---------------------------------------------------------------------------
-// Activity type
-// ---------------------------------------------------------------------------
-
-interface Activity {
-  id: string;
-  action: string;
-  description: string;
-  timestamp: string;
-  type: string;
-  category: string;
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -104,9 +79,6 @@ export default function Dashboard() {
   const { dashboardStats, fetchDashboardStats } = useAdminStore();
   const navigate = useNavigate();
 
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [activitiesLoading, setActivitiesLoading] = useState(true);
-
   // Dynamic current week
   const currentWeekRange = useMemo(() => {
     const monday = getMonday(new Date());
@@ -115,14 +87,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardStats();
-    // Fetch recent activity from backend
-    setActivitiesLoading(true);
-    dashboardAPI.getActivity()
-      .then((res) => {
-        setActivities(res.data.data || []);
-      })
-      .catch(() => setActivities([]))
-      .finally(() => setActivitiesLoading(false));
   }, [fetchDashboardStats]);
 
   const stats = dashboardStats;
@@ -334,49 +298,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Recent Activity (API-driven) */}
-      <motion.div variants={itemVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activitiesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
-              </div>
-            ) : activities.length === 0 ? (
-              <div className="text-center py-8">
-                <BarChart3 className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-2" />
-                <p className="text-sm text-[var(--text-tertiary)]">No recent activity yet</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {activities.map((activity, i) => (
-                  <motion.div
-                    key={activity.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors group"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] group-hover:bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-secondary)] transition-colors">
-                      {iconMap[activity.category] || iconMap[activity.type] || <Clock className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--text-primary)]">{activity.action}</p>
-                      <p className="text-xs text-[var(--text-tertiary)] truncate">{activity.description}</p>
-                    </div>
-                    <span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">
-                      {new Date(activity.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
     </motion.div>
   );
 }
