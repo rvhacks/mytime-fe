@@ -16,6 +16,7 @@ import {
   Settings2,
   Tag,
   Users,
+  UsersRound,
   FolderOpen,
   Link2,
   Target,
@@ -40,7 +41,9 @@ const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'admin'] },
   { path: '/timesheet', label: 'Timesheet', icon: Clock, roles: ['employee'] },
   { path: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin'] },
+  { path: '/employee-reports', label: 'Reports', icon: BarChart3, roles: ['employee'] },
   { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee'] },
+  { path: '/my-team', label: 'My Team', icon: UsersRound, roles: ['employee'] },
   { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['employee', 'admin'] },
   { path: '/profile', label: 'Profile', icon: User, roles: ['employee', 'admin'] },
 ];

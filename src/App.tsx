@@ -20,6 +20,8 @@ import ProjectTeam from '@/pages/ProjectTeam';
 import Approvals from '@/pages/Approvals';
 import Profile from '@/pages/Profile';
 import ChangePassword from '@/pages/ChangePassword';
+import EmployeeReports from '@/pages/EmployeeReports';
+import MyTeam from '@/pages/MyTeam';
 
 // Management pages (admin)
 import Designations from '@/pages/management/Designations';
@@ -105,9 +107,11 @@ export default function App() {
             }
           />
           <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><Reports /></ProtectedRoute>} />
+          <Route path="/employee-reports" element={<ProtectedRoute allowedRoles={['employee']}><EmployeeReports /></ProtectedRoute>} />
           <Route path="/projects" element={<MyProjects />} />
           <Route path="/projects/:projectId" element={<ProjectDetail />} />
           <Route path="/projects/:projectId/team" element={<ProjectTeam />} />
+          <Route path="/my-team" element={<ProtectedRoute allowedRoles={['employee']}><MyTeam /></ProtectedRoute>} />
           <Route
             path="/approvals"
             element={

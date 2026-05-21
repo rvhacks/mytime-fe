@@ -111,6 +111,8 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(buildAvatarUrl(user?.avatar));
 
   // Fetch fresh profile from API on mount to get correct avatarUrl
+  const [reportingManager, setReportingManager] = useState<any>(null);
+
   useEffect(() => {
     userAPI.getProfile().then((res) => {
       const data = res.data.data;
@@ -118,6 +120,9 @@ export default function Profile() {
       if (freshUrl) {
         setAvatarUrl(buildAvatarUrl(freshUrl));
         if (user) setUser({ ...user, avatar: data.avatarUrl || freshUrl });
+      }
+      if (data?.reportingManager) {
+        setReportingManager(data.reportingManager);
       }
     }).catch(() => { /* ignore */ });
     fetchDesignations({ limit: 100 });
@@ -369,6 +374,52 @@ export default function Profile() {
           )}
         </CardContent>
       </Card>
+
+      {/* Reporting Manager Section */}
+      {reportingManager && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserIcon className="w-4 h-4 text-[var(--text-tertiary)]" />
+              Reporting Manager
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              {reportingManager.avatarUrl ? (
+                <img
+                  src={`${API_HOST}${reportingManager.avatarUrl}`}
+                  alt={reportingManager.name}
+                  className="w-14 h-14 rounded-xl object-cover border-2 border-[var(--card-border)]"
+                />
+              ) : (
+                <Avatar name={reportingManager.name} size="md" className="w-14 h-14 text-lg" />
+              )}
+              <div className="space-y-1.5">
+                <p className="text-base font-semibold text-[var(--text-primary)]">{reportingManager.name}</p>
+                <div className="flex items-center gap-4">
+                  <a
+                    href={`mailto:${reportingManager.email}`}
+                    className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-brand-500 transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    {reportingManager.email}
+                  </a>
+                  {reportingManager.mobile && (
+                    <a
+                      href={`tel:${reportingManager.mobile}`}
+                      className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-brand-500 transition-colors"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      {reportingManager.mobile}
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ---- CROP MODAL ---- */}
       <AnimatePresence>

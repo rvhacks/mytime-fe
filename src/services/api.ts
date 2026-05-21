@@ -62,6 +62,8 @@ export const userAPI = {
   },
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put('/users/change-password', { currentPassword, newPassword }),
+  getMyReport: (params?: any) => api.get('/users/report', { params }),
+  getMyTeam: () => api.get('/users/team'),
 };
 
 // ---- ADMIN: DESIGNATIONS ----
