@@ -135,6 +135,7 @@ export const timesheetAPI = {
   submitEntries: (entryIds: string[]) => api.post('/timesheets/submit', { entryIds }),
   recallEntries: (entryIds: string[]) => api.post('/timesheets/recall', { entryIds }),
   getDetail: (id: string) => api.get(`/timesheets/detail/${id}`),
+  getRejectedEntries: () => api.get('/timesheets/rejected-entries'),
   // Project detail (for employees)
   getProjectDetail: (projectId: string) => api.get(`/timesheets/project/${projectId}`),
   // Approvals (entry-level)

@@ -71,6 +71,64 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
 }
 
 // ---------------------------------------------------------------------------
+// RM Card Sub-Component
+// ---------------------------------------------------------------------------
+
+function RmCard({ rm, buildUrl }: { rm: any; buildUrl: (url: string | null) => string | null }) {
+  const [imgErr, setImgErr] = useState(false);
+  const avatarSrc = buildUrl(rm.avatarUrl);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <UserIcon className="w-4 h-4 text-[var(--text-tertiary)]" />
+          Reporting Manager
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          {avatarSrc && !imgErr ? (
+            <img
+              src={avatarSrc}
+              alt={rm.name}
+              className="w-14 h-14 rounded-xl object-cover border-2 border-[var(--card-border)]"
+              onError={() => setImgErr(true)}
+            />
+          ) : (
+            <Avatar name={rm.name} size="md" className="w-14 h-14 text-lg" />
+          )}
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-[var(--text-primary)]">{rm.name}</p>
+            {rm.designation && (
+              <p className="text-xs text-[var(--text-secondary)]">{rm.designation}</p>
+            )}
+            <div className="flex items-center gap-4">
+              <a
+                href={`mailto:${rm.email}`}
+                className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-brand-500 transition-colors"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                {rm.email}
+              </a>
+              {rm.mobile && (
+                <a
+                  href={`tel:${rm.mobile}`}
+                  className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-brand-500 transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  {rm.mobile}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -88,6 +146,7 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarImgError, setAvatarImgError] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: '', lastName: '', mobile: '', dob: '', designationId: '',
   });
@@ -271,8 +330,13 @@ export default function Profile() {
               onMouseLeave={() => setAvatarHover(false)}
               onClick={() => fileInputRef.current?.click()}
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-[var(--card-border)]" />
+              {avatarUrl && !avatarImgError ? (
+                <img
+                  src={avatarUrl}
+                  alt="Avatar"
+                  className="w-24 h-24 rounded-full object-cover border-4 border-[var(--card-border)]"
+                  onError={() => setAvatarImgError(true)}
+                />
               ) : (
                 <Avatar name={user.name} size="xl" className="w-24 h-24 text-2xl" />
               )}
@@ -377,48 +441,7 @@ export default function Profile() {
 
       {/* Reporting Manager Section */}
       {reportingManager && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <UserIcon className="w-4 h-4 text-[var(--text-tertiary)]" />
-              Reporting Manager
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              {reportingManager.avatarUrl ? (
-                <img
-                  src={`${API_HOST}${reportingManager.avatarUrl}`}
-                  alt={reportingManager.name}
-                  className="w-14 h-14 rounded-xl object-cover border-2 border-[var(--card-border)]"
-                />
-              ) : (
-                <Avatar name={reportingManager.name} size="md" className="w-14 h-14 text-lg" />
-              )}
-              <div className="space-y-1.5">
-                <p className="text-base font-semibold text-[var(--text-primary)]">{reportingManager.name}</p>
-                <div className="flex items-center gap-4">
-                  <a
-                    href={`mailto:${reportingManager.email}`}
-                    className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-brand-500 transition-colors"
-                  >
-                    <Mail className="w-3.5 h-3.5" />
-                    {reportingManager.email}
-                  </a>
-                  {reportingManager.mobile && (
-                    <a
-                      href={`tel:${reportingManager.mobile}`}
-                      className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-brand-500 transition-colors"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      {reportingManager.mobile}
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <RmCard rm={reportingManager} buildUrl={buildAvatarUrl} />
       )}
 
       {/* ---- CROP MODAL ---- */}

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -144,7 +145,18 @@ export default function Timesheet() {
     roles.forEach((role) => fetchMilestonesForRole(role));
   }, [assignedProjects, currentTimesheet.id]); // re-run when timesheet or projects load
 
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(() => {
+    // Check for weekStart URL param to navigate to specific week
+    const params = new URLSearchParams(window.location.search);
+    const ws = params.get('weekStart');
+    if (ws) {
+      const target = getMonday(new Date(ws + 'T00:00:00'));
+      const current = getMonday(new Date());
+      const diff = Math.round((target.getTime() - current.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      return diff;
+    }
+    return 0;
+  });
 
   // Compute the Monday of the current (real) week and the displayed week
   const thisMonday = useMemo(() => getMonday(new Date()), []);
@@ -161,7 +173,7 @@ export default function Timesheet() {
   const BACKDATE_LIMIT_WEEKS = 4;
   const isBackdatedBeyondLimit = weekOffset < -BACKDATE_LIMIT_WEEKS;
   // Per-row locking: a row is locked if its status is submitted or approved
-  const isRowLocked = (status: string) => ['submitted', 'approved'].includes(status);
+  const isRowLocked = (status: string) => ['submitted', 'resubmitted', 'approved'].includes(status);
   // Global lock only for backdate limit
   const isGlobalLocked = isBackdatedBeyondLimit;
   // Legacy compat
@@ -240,7 +252,7 @@ export default function Timesheet() {
   };
 
   const handleRecallAll = async () => {
-    const submittedIds = rows.filter(r => r.status === 'submitted').map(r => r.id);
+    const submittedIds = rows.filter(r => r.status === 'submitted' || r.status === 'resubmitted').map(r => r.id);
     if (submittedIds.length === 0) return;
     await recallEntries(submittedIds);
     toast.success('Entries recalled');
@@ -286,8 +298,9 @@ export default function Timesheet() {
     const statuses = (activeTimesheet?.rows || []).map(r => r.status);
     const allApproved = statuses.length > 0 && statuses.every(s => s === 'approved');
     const hasSubmitted = statuses.some(s => s === 'submitted');
+    const hasResubmitted = statuses.some(s => s === 'resubmitted');
     const hasRejected = statuses.some(s => s === 'rejected');
-    const aggStatus = allApproved ? 'approved' : hasSubmitted ? 'submitted' : hasRejected ? 'rejected' : 'draft';
+    const aggStatus = allApproved ? 'approved' : hasSubmitted ? 'submitted' : hasResubmitted ? 'resubmitted' : hasRejected ? 'rejected' : 'draft';
     return <StatusBadge status={aggStatus} />;
   };
 
@@ -353,7 +366,7 @@ export default function Timesheet() {
               Submit All
             </Button>
           )}
-          {!isGlobalLocked && rows.some(r => r.status === 'submitted') && (
+          {!isGlobalLocked && rows.some(r => r.status === 'submitted' || r.status === 'resubmitted') && (
             <Button size="sm" variant="outline" onClick={handleRecallAll} isLoading={isSaving}>
               Recall Submitted
             </Button>
@@ -533,6 +546,13 @@ export default function Timesheet() {
                             <td className="p-3 text-center">
                               <div className="flex flex-col items-center gap-1">
                                 <StatusBadge status={row.status || 'draft'} />
+                                {row.status === 'rejected' && row.reviewComments && (
+                                  <div className="max-w-[140px] px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30" title={row.reviewComments}>
+                                    <p className="text-[9px] text-red-600 dark:text-red-300 truncate">
+                                      Reason: {row.reviewComments}
+                                    </p>
+                                  </div>
+                                )}
                                 {(row.resubmissionCount || 0) > 0 && (
                                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" title="This entry was resubmitted after rejection">
                                     <RotateCcw className="w-2.5 h-2.5" />

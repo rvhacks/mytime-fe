@@ -15,7 +15,9 @@ export const PROJECT_ROLES: Record<ProjectRoleKey, string> = {
   PM:  'Project Manager',
 };
 
-export const PROJECT_ROLE_KEYS: ProjectRoleKey[] = Object.keys(PROJECT_ROLES) as ProjectRoleKey[];
+export const PROJECT_ROLE_KEYS: ProjectRoleKey[] = (Object.keys(PROJECT_ROLES) as ProjectRoleKey[]).sort(
+  (a, b) => PROJECT_ROLES[a].localeCompare(PROJECT_ROLES[b])
+);
 
 export function getRoleLabel(key: string): string {
   return PROJECT_ROLES[key as ProjectRoleKey] || key;

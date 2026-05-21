@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
 import { useAdminStore } from '@/store/adminStore';
-import { dashboardAPI } from '@/services/api';
+import { dashboardAPI, timesheetAPI } from '@/services/api';
 import {
   BarChart,
   Bar,
@@ -88,6 +88,16 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardStats();
   }, [fetchDashboardStats]);
+
+  // Fetch rejected entries for employee dashboard alert
+  const [rejectedEntries, setRejectedEntries] = useState<any[]>([]);
+  useEffect(() => {
+    if (user?.role !== 'admin') {
+      timesheetAPI.getRejectedEntries().then((res) => {
+        setRejectedEntries(res.data.data || []);
+      }).catch(() => {});
+    }
+  }, [user?.role]);
 
   const stats = dashboardStats;
   const billableRate = stats && stats.totalHoursLogged > 0 ? Math.round((stats.billableHours / stats.totalHoursLogged) * 100) : 0;
@@ -170,6 +180,57 @@ export default function Dashboard() {
           </button>
         )}
       </motion.div>
+
+      {/* Rejected Timesheet Alert */}
+      {!isAdmin && rejectedEntries.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <div className="rounded-xl border border-red-200 dark:border-red-800/50 bg-red-50/80 dark:bg-red-900/10 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                  {rejectedEntries.length} Timesheet{rejectedEntries.length > 1 ? ' Entries' : ' Entry'} Rejected
+                </p>
+                <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
+                  Please review the rejection reasons and re-submit your timesheet.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {/* Group by week */}
+                  {[...new Map(rejectedEntries.map(e => [
+                    e.timesheet?.week_start_date,
+                    {
+                      weekStart: e.timesheet?.week_start_date,
+                      weekEnd: e.timesheet?.week_end_date,
+                      entries: rejectedEntries.filter(re => re.timesheet?.week_start_date === e.timesheet?.week_start_date),
+                    }
+                  ])).values()].map((group: any) => (
+                    <div key={group.weekStart} className="flex items-center gap-3 p-2 rounded-lg bg-red-100/50 dark:bg-red-900/20">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-red-700 dark:text-red-400">
+                          Week: {new Date(group.weekStart + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(group.weekEnd + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {group.entries.map((e: any) => (
+                            <span key={e.id} className="text-[10px] text-red-600 dark:text-red-300" title={e.review_comments}>
+                              {e.project?.name}: <em>{e.review_comments || 'No reason'}</em>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/timesheet?weekStart=${group.weekStart}`)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-red-500 hover:bg-red-600 transition-colors shrink-0"
+                      >
+                        View Timesheet
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

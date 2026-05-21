@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Link2, Search, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,6 +32,13 @@ export default function Assignments() {
   const [limit, setLimit] = useState(10);
   const [filterEmpId, setFilterEmpId] = useState<string>('');
   const [filterProjId, setFilterProjId] = useState<string>('');
+
+  // Pre-populate project filter from URL query
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const pid = searchParams.get('projectId');
+    if (pid) setFilterProjId(pid);
+  }, [searchParams]);
 
   const loadPage = useCallback((p: number, l: number) => {
     fetchAssignments({ page: p, limit: l });

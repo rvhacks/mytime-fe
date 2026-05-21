@@ -1,10 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 
-type StatusType = 'draft' | 'submitted' | 'approved' | 'rejected' | 'pending' | 'overdue' | 'active' | 'inactive' | 'completed' | 'on-hold' | 'in-progress';
+type StatusType = 'draft' | 'submitted' | 'resubmitted' | 'recalled' | 'approved' | 'rejected' | 'pending' | 'overdue' | 'active' | 'inactive' | 'completed' | 'on-hold' | 'in-progress';
 
 const statusConfig: Record<StatusType, { label: string; variant: 'default' | 'success' | 'warning' | 'danger' | 'secondary' }> = {
   draft: { label: 'Draft', variant: 'secondary' },
   submitted: { label: 'Submitted', variant: 'default' },
+  resubmitted: { label: 'Re-Submitted', variant: 'warning' },
+  recalled: { label: 'Recalled', variant: 'secondary' },
   approved: { label: 'Approved', variant: 'success' },
   rejected: { label: 'Rejected', variant: 'danger' },
   pending: { label: 'Pending', variant: 'warning' },

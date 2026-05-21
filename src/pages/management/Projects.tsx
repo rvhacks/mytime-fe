@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Edit3, Trash2, FolderKanban, Search, Filter, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +21,7 @@ const emptyForm = {
 
 export default function Projects() {
   const { projects, addProject, updateProject, deleteProject, fetchProjects, isLoading, projectPagination } = useAdminStore();
+  const navigate = useNavigate();
 
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -240,10 +242,14 @@ export default function Projects() {
                     <td className="p-4 text-sm text-[var(--text-secondary)] font-mono">{p.code}</td>
                     <td className="p-4">{statusBadge(p.status)}</td>
                     <td className="p-4 text-center">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-medium">
+                      <button
+                        onClick={() => navigate(`/management/assignments?projectId=${p.id}`)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
+                        title="View team assignments"
+                      >
                         <Users className="w-3.5 h-3.5" />
                         {p.teamCount || 0}
-                      </div>
+                      </button>
                     </td>
                     <td className="p-4 text-sm text-[var(--text-secondary)]">
                       {p.startDate && p.endDate ? `${new Date(p.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(p.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : '—'}

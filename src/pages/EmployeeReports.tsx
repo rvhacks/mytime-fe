@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Filter, Clock, CheckCircle2, DollarSign, Receipt, X, FileSpreadsheet, ChevronDown, Users as UsersIcon } from 'lucide-react';
+import { Filter, Clock, CheckCircle2, DollarSign, Receipt, X, FileSpreadsheet, ChevronDown, Users as UsersIcon, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Pagination } from '@/components/shared/Pagination';
 import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
@@ -39,6 +40,7 @@ function formatDateRange(start: string, end: string): string {
 export default function EmployeeReports() {
   const { user } = useAuthStore();
   const isManager = user?.isManager;
+  const navigate = useNavigate();
 
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 1 });
@@ -252,12 +254,13 @@ export default function EmployeeReports() {
                   <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">
                     <span className="text-amber-500">Non-Billable Hours</span>
                   </th>
+                  <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center">
+                    <td colSpan={7} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
                         <span className="text-sm text-[var(--text-secondary)]">Loading report...</span>
@@ -266,7 +269,7 @@ export default function EmployeeReports() {
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center">
+                    <td colSpan={7} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <FileSpreadsheet className="w-10 h-10 text-[var(--text-tertiary)]" />
                         <span className="text-sm font-medium text-[var(--text-secondary)]">No timesheets found</span>
@@ -311,6 +314,16 @@ export default function EmployeeReports() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{formatHours(row.nonBillableHours)}h</span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => navigate(`/timesheet?weekStart=${row.weekStartDate}`)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors"
+                          title="View this week's timesheet"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View
+                        </button>
                       </td>
                     </motion.tr>
                   ))
