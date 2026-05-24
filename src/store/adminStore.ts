@@ -97,6 +97,8 @@ function mapApprovalEntry(entry: any): ApprovalEntry {
     totalHours,
     status: entry.status || 'submitted',
     submittedAt: entry.submitted_at || '',
+    reviewComments: entry.review_comments || '',
+    reviewerName: entry.reviewer ? `${entry.reviewer.first_name} ${entry.reviewer.last_name}` : '',
     resubmissionCount: entry.resubmission_count || 0,
     rejectionHistory: entry.rejection_history || [],
   };

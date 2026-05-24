@@ -161,6 +161,8 @@ export interface ApprovalEntry {
   totalHours: number;
   status: EntryStatus;
   submittedAt: string;
+  reviewComments?: string;
+  reviewerName?: string;
   resubmissionCount?: number;
   rejectionHistory?: Array<{ rejectedAt: string; reviewerName: string; comments: string }>;
 }

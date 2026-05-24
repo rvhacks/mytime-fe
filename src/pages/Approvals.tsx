@@ -287,13 +287,24 @@ export default function Approvals() {
                   ))}
                 </div>
               </div>
-              {/* Rejection History */}
-              {(viewEntry.resubmissionCount || 0) > 0 && viewEntry.rejectionHistory && viewEntry.rejectionHistory.length > 0 && (
+              {/* Current Rejection Reason */}
+              {viewEntry.status === 'rejected' && viewEntry.reviewComments && (
+                <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
+                  <div className="flex items-center gap-2 mb-1">
+                    <History className="w-3.5 h-3.5 text-red-500" />
+                    <span className="text-xs font-medium text-red-700 dark:text-red-400">Current Rejection</span>
+                    {viewEntry.reviewerName && <span className="text-[10px] text-red-500">by {viewEntry.reviewerName}</span>}
+                  </div>
+                  <p className="text-xs text-red-600 dark:text-red-300">{viewEntry.reviewComments}</p>
+                </div>
+              )}
+              {/* Past Rejection History */}
+              {viewEntry.rejectionHistory && viewEntry.rejectionHistory.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <History className="w-4 h-4 text-amber-500" />
                     <p className="text-xs text-amber-600 dark:text-amber-400 uppercase font-medium">
-                      Rejection History ({viewEntry.resubmissionCount} resubmission{(viewEntry.resubmissionCount || 0) > 1 ? 's' : ''})
+                      Past Rejection History ({viewEntry.rejectionHistory.length})
                     </p>
                   </div>
                   <div className="space-y-2 max-h-40 overflow-y-auto">

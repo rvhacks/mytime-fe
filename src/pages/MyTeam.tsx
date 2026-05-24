@@ -43,20 +43,21 @@ export default function MyTeam() {
 
   useEffect(() => {
     setLoading(true);
-    userAPI.getMyTeam()
+    const params: any = {};
+    if (projectFilter) params.projectId = projectFilter;
+    userAPI.getMyTeam(params)
       .then((res) => {
         setMembers(res.data.data?.members || []);
-        setProjects(res.data.data?.projects || []);
+        // Only set projects on initial load (no filter), to keep dropdown stable
+        if (!projectFilter) setProjects(res.data.data?.projects || []);
       })
       .catch((err: any) => {
         toast.error(err.response?.data?.message || 'Failed to load team');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectFilter]);
 
-  // Filter members based on search and project
-  // Note: project filter would need backend support to filter by project assignment
-  // For now we filter by name locally
+  // Filter members based on search (project filter is handled by API)
   const filteredMembers = useMemo(() => {
     let filtered = members;
     if (search) {

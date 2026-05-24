@@ -63,7 +63,7 @@ export const userAPI = {
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put('/users/change-password', { currentPassword, newPassword }),
   getMyReport: (params?: any) => api.get('/users/report', { params }),
-  getMyTeam: () => api.get('/users/team'),
+  getMyTeam: (params?: { projectId?: string }) => api.get('/users/team', { params }),
 };
 
 // ---- ADMIN: DESIGNATIONS ----
@@ -136,6 +136,7 @@ export const timesheetAPI = {
   recallEntries: (entryIds: string[]) => api.post('/timesheets/recall', { entryIds }),
   getDetail: (id: string) => api.get(`/timesheets/detail/${id}`),
   getRejectedEntries: () => api.get('/timesheets/rejected-entries'),
+  getRejectionHistory: (entryId: string) => api.get(`/timesheets/rejection-history/${entryId}`),
   // Project detail (for employees)
   getProjectDetail: (projectId: string) => api.get(`/timesheets/project/${projectId}`),
   // Approvals (entry-level)

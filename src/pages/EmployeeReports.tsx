@@ -31,9 +31,14 @@ function formatHours(h: number): string {
   return h % 1 === 0 ? String(h) : h.toFixed(1);
 }
 
+function normalizeDate(d: string): string {
+  // Extract just YYYY-MM-DD from any date format (handles timestamps like 2026-05-18T18:30:00.000Z)
+  return d ? d.slice(0, 10) : d;
+}
+
 function formatDateRange(start: string, end: string): string {
-  const s = new Date(start + 'T00:00:00');
-  const e = new Date(end + 'T00:00:00');
+  const s = new Date(normalizeDate(start) + 'T00:00:00');
+  const e = new Date(normalizeDate(end) + 'T00:00:00');
   return `${s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
@@ -317,7 +322,7 @@ export default function EmployeeReports() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         <button
-                          onClick={() => navigate(`/timesheet?weekStart=${row.weekStartDate}`)}
+                          onClick={() => navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}`)}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors"
                           title="View this week's timesheet"
                         >

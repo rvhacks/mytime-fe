@@ -110,10 +110,13 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       const dayOfWeek = today.getDay();
       const monday = new Date(today);
       monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
-      const thisWeekStart = monday.toISOString().slice(0, 10);
+      // Use local date to avoid UTC timezone shift
+      const thisWeekStart = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 
-      let current = all.find((t) => t.weekStartDate === thisWeekStart);
-      const past = all.filter((t) => t.weekStartDate !== thisWeekStart);
+      // Normalize weekStartDate to YYYY-MM-DD for consistent comparison
+      const normalizeDate = (d: string) => d ? d.slice(0, 10) : '';
+      let current = all.find((t) => normalizeDate(t.weekStartDate) === thisWeekStart);
+      const past = all.filter((t) => normalizeDate(t.weekStartDate) !== thisWeekStart);
 
       if (!current) current = emptyTimesheet();
 

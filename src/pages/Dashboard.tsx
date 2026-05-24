@@ -196,14 +196,14 @@ export default function Dashboard() {
                 </p>
                 <div className="mt-3 space-y-2">
                   {/* Group by week */}
-                  {[...new Map(rejectedEntries.map(e => [
-                    e.timesheet?.week_start_date,
-                    {
-                      weekStart: e.timesheet?.week_start_date,
-                      weekEnd: e.timesheet?.week_end_date,
-                      entries: rejectedEntries.filter(re => re.timesheet?.week_start_date === e.timesheet?.week_start_date),
-                    }
-                  ])).values()].map((group: any) => (
+                  {[...new Map(rejectedEntries.map(e => {
+                    const ws = (e.timesheet?.week_start_date || '').slice(0, 10);
+                    return [ws, {
+                      weekStart: ws,
+                      weekEnd: (e.timesheet?.week_end_date || '').slice(0, 10),
+                      entries: rejectedEntries.filter(re => (re.timesheet?.week_start_date || '').slice(0, 10) === ws),
+                    }];
+                  })).values()].map((group: any) => (
                     <div key={group.weekStart} className="flex items-center gap-3 p-2 rounded-lg bg-red-100/50 dark:bg-red-900/20">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-red-700 dark:text-red-400">
@@ -218,7 +218,11 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <button
-                        onClick={() => navigate(`/timesheet?weekStart=${group.weekStart}`)}
+                        onClick={() => {
+                          // Dismiss this week's alert
+                          setRejectedEntries(prev => prev.filter(e => (e.timesheet?.week_start_date || '').slice(0, 10) !== group.weekStart));
+                          navigate(`/timesheet?weekStart=${group.weekStart}`);
+                        }}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-red-500 hover:bg-red-600 transition-colors shrink-0"
                       >
                         View Timesheet
