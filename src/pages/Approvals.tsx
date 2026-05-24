@@ -237,7 +237,7 @@ export default function Approvals() {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialog(null)}>Cancel</Button>
-            <Button variant="danger" onClick={handleReject}>Reject</Button>
+            <Button variant="destructive" onClick={handleReject}>Reject</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

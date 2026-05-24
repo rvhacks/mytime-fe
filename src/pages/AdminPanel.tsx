@@ -149,7 +149,7 @@ export default function AdminPanel() {
             </div>
             <div>
               <p className="text-xl font-bold text-[var(--text-primary)]">
-                {projects.reduce((sum, p) => sum + p.milestones.length, 0)}
+                {projects.reduce((sum, p) => sum + (p.milestones?.length || 0), 0)}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">Milestones</p>
             </div>
@@ -241,7 +241,7 @@ export default function AdminPanel() {
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-[var(--text-tertiary)]">Code: {project.code}</span>
                             <span className="text-xs text-[var(--text-tertiary)]">•</span>
-                            <span className="text-xs text-[var(--text-tertiary)]">{project.milestones.length} milestones</span>
+                            <span className="text-xs text-[var(--text-tertiary)]">{(project.milestones?.length || 0)} milestones</span>
                             <span className="text-xs text-[var(--text-tertiary)]">•</span>
                             <span className="text-xs text-[var(--text-tertiary)]">{project.assignedEmployees.length} assigned</span>
                           </div>
@@ -268,10 +268,10 @@ export default function AdminPanel() {
                     </div>
 
                     {/* Milestones */}
-                    {project.milestones.length > 0 && (
+                    {(project.milestones?.length || 0) > 0 && (
                       <div className="mt-4 pt-4 border-t border-[var(--border-secondary)]">
                         <div className="flex flex-wrap gap-2">
-                          {project.milestones.map((m) => (
+                          {(project.milestones || []).map((m: any) => (
                             <span
                               key={m.id}
                               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
@@ -310,7 +310,7 @@ export default function AdminPanel() {
                 </thead>
                 <tbody>
                   {projects.flatMap((p) =>
-                    p.milestones.map((m) => (
+                    (p.milestones || []).map((m: any) => (
                       <tr key={m.id} className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
                         <td className="py-3 px-4 text-sm text-[var(--text-primary)]">{m.name}</td>
                         <td className="py-3 px-4">

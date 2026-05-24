@@ -241,11 +241,12 @@ export default function AdminApprovals() {
       </Card>
       {totalPages > 1 && (
         <Pagination
-          currentPage={page}
+          page={page}
           totalPages={totalPages}
+          total={managerApprovals.length}
+          limit={limit}
           onPageChange={setPage}
-          totalItems={managerApprovals.length}
-          itemsPerPage={limit}
+          onLimitChange={(l) => { setPage(1); /* unused but required */ }}
         />
       )}
     </motion.div>

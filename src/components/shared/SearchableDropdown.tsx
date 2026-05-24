@@ -39,7 +39,7 @@ export function SearchableDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchItems = useCallback(async (searchTerm: string, pageNum: number, append = false) => {
     setLoading(true);
@@ -74,13 +74,13 @@ export function SearchableDropdown({
   // Debounced search
   useEffect(() => {
     if (!isOpen) return;
-    clearTimeout(debounceRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setItems([]);
       setPage(1);
       fetchItems(search, 1);
     }, 300);
-    return () => clearTimeout(debounceRef.current);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [search]);
 
   // Click outside

@@ -59,6 +59,7 @@ export interface Project {
   status: 'active' | 'completed' | 'on-hold';
   assignedEmployees: string[];
   teamCount?: number;
+  milestones?: any[];
 }
 
 export interface Milestone {
