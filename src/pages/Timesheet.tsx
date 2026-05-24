@@ -207,7 +207,7 @@ export default function Timesheet() {
     // A row is "saveable" only when it has project + at least 1 hour entered
     const saveableRows = currentTimesheet.rows.filter(r =>
       r.projectId &&
-      ['draft', 'recalled', 'rejected'].includes(r.status) &&
+      ['draft', 'recalled'].includes(r.status) &&
       Object.values(r.hours).some(h => h > 0)
     );
     // Don't auto-save if no saveable rows exist

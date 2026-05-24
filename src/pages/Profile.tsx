@@ -370,18 +370,18 @@ export default function Profile() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Personal Information</CardTitle>
-            {!isEditing ? (
+            {user?.role === 'admin' && !isEditing ? (
               <Button size="sm" variant="outline" onClick={startEditing}>
                 <Edit3 className="w-4 h-4" /> Edit
               </Button>
-            ) : (
+            ) : user?.role === 'admin' && isEditing ? (
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
                 <Button size="sm" onClick={handleSaveProfile} isLoading={isSaving}>
                   <Save className="w-4 h-4" /> Save
                 </Button>
               </div>
-            )}
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>

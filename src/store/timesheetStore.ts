@@ -205,7 +205,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     const currentWeekStart = current.weekStartDate;
     const prevWeekDate = new Date(currentWeekStart + 'T00:00:00');
     prevWeekDate.setDate(prevWeekDate.getDate() - 7);
-    const prevWeekStart = prevWeekDate.toISOString().slice(0, 10);
+    const prevWeekStart = `${prevWeekDate.getFullYear()}-${String(prevWeekDate.getMonth() + 1).padStart(2, '0')}-${String(prevWeekDate.getDate()).padStart(2, '0')}`;
 
     try {
       const res = await timesheetAPI.getWeekTimesheet(prevWeekStart);
@@ -242,9 +242,9 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     set({ isSaving: true });
     try {
       const ts = get().currentTimesheet;
-      // Identify rows that should be sent to the API (have project + are editable)
+      // Only save draft/recalled rows — rejected rows must NOT be auto-saved
       const editableRows = ts.rows.filter((r) =>
-        r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status)
+        r.projectId && ['draft', 'recalled'].includes(r.status)
       );
 
       const entries = editableRows.map((r) => ({
@@ -271,7 +271,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       const apiEntries = apiData?.entries || [];
       const currentTs = get().currentTimesheet;
       const updatedRows = currentTs.rows.map((row) => {
-        if (!row.projectId || !['draft', 'recalled', 'rejected'].includes(row.status)) return row;
+        if (!row.projectId || !['draft', 'recalled'].includes(row.status)) return row;
         // Match by projectId + hours to find the corresponding API entry
         const match = apiEntries.find((ae: any) =>
           (ae.project_id === row.projectId || ae.project?.id === row.projectId) &&
@@ -281,7 +281,7 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         return row;
       });
       const savedHash = JSON.stringify(updatedRows
-        .filter(r => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status) && Object.values(r.hours).some(h => h > 0))
+        .filter(r => r.projectId && ['draft', 'recalled'].includes(r.status) && Object.values(r.hours).some(h => h > 0))
         .map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
       set({
         currentTimesheet: {
