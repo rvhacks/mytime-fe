@@ -54,6 +54,19 @@ interface ProjectData {
   }>;
 }
 
+function TeamMemberAvatar({ url, name }: { url: string; name: string }) {
+  const [err, setErr] = useState(false);
+  if (err) return <Avatar name={name} size="sm" />;
+  return (
+    <img
+      src={url}
+      alt={name}
+      className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+      onError={() => setErr(true)}
+    />
+  );
+}
+
 export default function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -145,7 +158,7 @@ export default function ProjectDetail() {
               </p>
             </div>
           </div>
-          <StatusBadge status={project.status} />
+          <StatusBadge status={project.status as any} />
         </div>
       </motion.div>
 
@@ -162,7 +175,7 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wider mb-0.5">Status</p>
-                <StatusBadge status={project.status} />
+                <StatusBadge status={project.status as any} />
               </div>
               <div>
                 <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wider mb-0.5">Team Size</p>
@@ -217,11 +230,7 @@ export default function ProjectDetail() {
                     className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                   >
                     {member.avatarUrl ? (
-                      <img
-                        src={member.avatarUrl}
-                        alt={member.name}
-                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
-                      />
+                      <TeamMemberAvatar url={member.avatarUrl} name={member.name} />
                     ) : (
                       <Avatar name={member.name} size="sm" />
                     )}

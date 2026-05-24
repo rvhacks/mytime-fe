@@ -264,12 +264,18 @@ export default function Timesheet() {
 
   // Load week from API on every week change (including current week)
   const { loadWeek } = useTimesheetStore();
+  const formatLocalDate = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   useEffect(() => {
     const monday = shiftWeek(thisMonday, weekOffset);
     const sunday = new Date(monday);
     sunday.setDate(sunday.getDate() + 6);
-    const start = monday.toISOString().slice(0, 10);
-    const end = sunday.toISOString().slice(0, 10);
+    const start = formatLocalDate(monday);
+    const end = formatLocalDate(sunday);
     loadWeek(start, end);
   }, [weekOffset]);
 
@@ -628,22 +634,30 @@ export default function Timesheet() {
                     <Plus className="w-4 h-4" />
                     Add Row
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const success = copyFromLastWeek();
-                      if (success) {
-                        toast.success('Copied rows from last week');
-                      } else {
-                        toast.error('No previous timesheet found to copy from');
-                      }
-                    }}
-                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy from Last Week
-                  </Button>
+                  {(() => {
+                    // Only enable Copy from Last Week when current week has no real data entered
+                    const hasData = rows.some(r => r.projectId && (Object.values(r.hours).some(h => h > 0) || r.taskDescription));
+                    return (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={hasData}
+                        onClick={async () => {
+                          const success = await copyFromLastWeek();
+                          if (success) {
+                            toast.success('Copied rows from last week');
+                          } else {
+                            toast.error('No previous timesheet found to copy from');
+                          }
+                        }}
+                        className={`${hasData ? 'opacity-40 cursor-not-allowed' : ''} text-[var(--text-secondary)] hover:text-[var(--text-primary)]`}
+                        title={hasData ? 'Available only when no data is entered in the current week' : 'Copy project rows from last week'}
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy from Last Week
+                      </Button>
+                    );
+                  })()}
                 </div>
               )}
             </CardContent>

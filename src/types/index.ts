@@ -6,7 +6,7 @@ export type UserRole = 'employee' | 'admin';
 
 export type ProjectRole = 'IC' | 'TC' | 'MS' | 'TPM' | 'PM' | 'QA' | 'BA';
 
-export type EntryStatus = 'draft' | 'submitted' | 'recalled' | 'approved' | 'rejected';
+export type EntryStatus = 'draft' | 'submitted' | 'resubmitted' | 'recalled' | 'approved' | 'rejected';
 
 export interface User {
   id: string;

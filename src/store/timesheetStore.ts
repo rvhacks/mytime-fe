@@ -16,7 +16,7 @@ interface TimesheetStore {
   updateRowField: (rowId: string, field: keyof TimesheetRow, value: string | boolean) => void;
   addRow: () => void;
   removeRow: (rowId: string) => void;
-  copyFromLastWeek: () => boolean;
+  copyFromLastWeek: () => Promise<boolean>;
   saveDraft: () => Promise<void>;
   submitEntries: (entryIds: string[]) => Promise<void>;
   recallEntries: (entryIds: string[]) => Promise<void>;
@@ -196,23 +196,38 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     });
   },
 
-  copyFromLastWeek: () => {
-    const { pastTimesheets } = get();
-    if (pastTimesheets.length === 0) return false;
-    const sorted = [...pastTimesheets].sort(
-      (a, b) => new Date(b.weekStartDate).getTime() - new Date(a.weekStartDate).getTime()
-    );
-    const lastWeek = sorted[0];
-    const copiedRows: TimesheetRow[] = lastWeek.rows.map((r) => ({
-      id: generateId(), projectId: r.projectId, milestoneId: r.milestoneId,
-      taskDescription: r.taskDescription, billable: r.billable,
-      hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 },
-      status: 'draft' as EntryStatus,
-    }));
-    set((state) => ({
-      currentTimesheet: { ...state.currentTimesheet, rows: copiedRows, totalHours: 0 },
-    }));
-    return true;
+  copyFromLastWeek: async () => {
+    const current = get().currentTimesheet;
+    // Calculate the previous week's Monday from the current timesheet
+    const currentWeekStart = current.weekStartDate;
+    const prevWeekDate = new Date(currentWeekStart + 'T00:00:00');
+    prevWeekDate.setDate(prevWeekDate.getDate() - 7);
+    const prevWeekStart = prevWeekDate.toISOString().slice(0, 10);
+
+    try {
+      const res = await timesheetAPI.getWeekTimesheet(prevWeekStart);
+      const ts = res.data.data;
+      if (!ts || !ts.entries || ts.entries.length === 0) return false;
+
+      const copiedRows: TimesheetRow[] = ts.entries.map((e: any) => ({
+        id: generateId(),
+        projectId: e.project_id || '',
+        milestoneId: e.milestone_id || '',
+        taskDescription: e.task_description || '',
+        billable: e.billable ?? true,
+        hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 },
+        status: 'draft' as EntryStatus,
+      }));
+
+      if (copiedRows.length === 0) return false;
+
+      set((state) => ({
+        currentTimesheet: { ...state.currentTimesheet, rows: copiedRows, totalHours: 0 },
+      }));
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   /**
