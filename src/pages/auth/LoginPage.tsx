@@ -178,10 +178,6 @@ export default function LoginPage() {
             </Button>
           </form>
 
-
-          <p className="mt-8 pt-6 border-t border-[var(--border-secondary)] text-xs text-[var(--text-tertiary)] text-center">
-            © {new Date().getFullYear()} Crystal Technology Solutions. All rights reserved.
-          </p>
         </motion.div>
       </div>
     </div>
