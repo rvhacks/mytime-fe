@@ -131,9 +131,10 @@ export const timesheetAPI = {
   getAssignedProjects: () => api.get('/timesheets/assigned-projects'),
   getMilestonesByRole: (role: string) => api.get(`/timesheets/milestones/role/${role}`),
   save: (data: any) => api.post('/timesheets/save', data),
-  // Entry-level submit/recall
+  // Entry-level submit/recall/delete
   submitEntries: (entryIds: string[]) => api.post('/timesheets/submit', { entryIds }),
   recallEntries: (entryIds: string[]) => api.post('/timesheets/recall', { entryIds }),
+  deleteEntry: (entryId: string) => api.delete(`/timesheets/entry/${entryId}`),
   getDetail: (id: string) => api.get(`/timesheets/detail/${id}`),
   getRejectedEntries: () => api.get('/timesheets/rejected-entries'),
   getRejectionHistory: (entryId: string) => api.get(`/timesheets/rejection-history/${entryId}`),

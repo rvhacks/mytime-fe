@@ -15,7 +15,7 @@ interface TimesheetStore {
   updateRowHours: (rowId: string, day: string, hours: number) => void;
   updateRowField: (rowId: string, field: keyof TimesheetRow, value: string | boolean) => void;
   addRow: () => void;
-  removeRow: (rowId: string) => void;
+  removeRow: (rowId: string) => Promise<void>;
   copyFromLastWeek: () => Promise<boolean>;
   saveDraft: () => Promise<void>;
   submitEntries: (entryIds: string[]) => Promise<void>;
@@ -110,17 +110,13 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       const dayOfWeek = today.getDay();
       const monday = new Date(today);
       monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
-      // Use local date to avoid UTC timezone shift
       const thisWeekStart = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 
-      // Normalize weekStartDate to YYYY-MM-DD for consistent comparison
       const normalizeDate = (d: string) => d ? d.slice(0, 10) : '';
-      let current = all.find((t) => normalizeDate(t.weekStartDate) === thisWeekStart);
       const past = all.filter((t) => normalizeDate(t.weekStartDate) !== thisWeekStart);
 
-      if (!current) current = emptyTimesheet();
-
-      set({ currentTimesheet: current, pastTimesheets: past, isLoading: false });
+      // Only set pastTimesheets — loadWeek handles currentTimesheet to avoid race conditions
+      set({ pastTimesheets: past, isLoading: false });
     } catch {
       set({ isLoading: false });
     }
@@ -189,7 +185,16 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     }));
   },
 
-  removeRow: (rowId) => {
+  removeRow: async (rowId) => {
+    const row = get().currentTimesheet.rows.find(r => r.id === rowId);
+    // If entry exists on backend (has a UUID-style id), delete it via API
+    if (row && row.id && row.id.includes('-') && ['draft', 'recalled'].includes(row.status)) {
+      try {
+        await timesheetAPI.deleteEntry(row.id);
+      } catch {
+        // If API fails, still remove from UI
+      }
+    }
     set((state) => {
       const rows = state.currentTimesheet.rows.filter((r) => r.id !== rowId);
       const totalHours = rows.reduce(
