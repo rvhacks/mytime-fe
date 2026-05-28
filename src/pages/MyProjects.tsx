@@ -17,6 +17,7 @@ interface AssignedProject {
   startDate?: string;
   endDate?: string;
   role?: string;
+  isOwnAssignment: boolean;
 }
 
 export default function MyProjects() {
@@ -47,6 +48,7 @@ export default function MyProjects() {
           startDate: p.start_date || '',
           endDate: p.end_date || '',
           role: p.assignment_role || '',
+          isOwnAssignment: p.is_own_assignment !== false,
         })));
       } catch (err: any) {
         if (!cancelled) {
@@ -177,57 +179,98 @@ export default function MyProjects() {
           description={projects.length === 0 ? "You have no projects assigned yet. Contact your manager." : "Try adjusting your search or filter criteria"}
           action={projects.length > 0 ? { label: 'Clear filters', onClick: () => { setSearch(''); setStatusFilter('all'); } } : undefined}
         />
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filtered.map((project, i) => (
-            <motion.div
-              key={project.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
-                {/* Color bar */}
-                <div className="h-1" style={{ backgroundColor: project.color }} />
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                        style={{ backgroundColor: project.color }}
-                      >
-                        {project.code.slice(0, 2)}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-brand-500 transition-colors">
-                          {project.name}
-                        </h3>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                          Code: {project.code} {project.role && `· Role: ${project.role}`}
-                        </p>
-                      </div>
+      ) : (() => {
+        const myProjects = filtered.filter(p => p.isOwnAssignment);
+        const teamProjects = filtered.filter(p => !p.isOwnAssignment);
+        const hasTeamProjects = teamProjects.length > 0;
+
+        const renderProjectCard = (project: AssignedProject, i: number) => (
+          <motion.div
+            key={project.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 group overflow-hidden cursor-pointer" onClick={() => navigate(`/projects/${project.id}`)}>
+              {/* Color bar */}
+              <div className="h-1" style={{ backgroundColor: project.color }} />
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{ backgroundColor: project.color }}
+                    >
+                      {project.code.slice(0, 2)}
                     </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-[var(--text-primary)] group-hover:text-brand-500 transition-colors">
+                        {project.name}
+                      </h3>
+                      <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                        Code: {project.code} {project.role && `· Role: ${project.role}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {project.isOwnAssignment && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400">Assigned</span>
+                    )}
                     <StatusBadge status={project.status} />
                   </div>
+                </div>
 
-                  {/* Date range */}
-                  {(project.startDate || project.endDate) && (
-                    <div className="text-xs text-[var(--text-tertiary)]">
-                      {project.startDate && new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                      {project.startDate && project.endDate && ' – '}
-                      {project.endDate && new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                    </div>
-                  )}
+                {/* Date range */}
+                {(project.startDate || project.endDate) && (
+                  <div className="text-xs text-[var(--text-tertiary)]">
+                    {project.startDate && new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    {project.startDate && project.endDate && ' – '}
+                    {project.endDate && new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </div>
+                )}
 
-                  {project.description && (
-                    <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-2">{project.description}</p>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      )}
+                {project.description && (
+                  <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-2">{project.description}</p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+        return hasTeamProjects ? (
+          <div className="space-y-8">
+            {/* My Projects Section */}
+            {myProjects.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                  <FolderKanban className="w-5 h-5 text-brand-500" />
+                  My Projects
+                  <span className="text-xs font-normal text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">{myProjects.length}</span>
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {myProjects.map((p, i) => renderProjectCard(p, i))}
+                </div>
+              </div>
+            )}
+
+            {/* Team Projects Section */}
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                <Target className="w-5 h-5 text-accent-500" />
+                Team Projects
+                <span className="text-xs font-normal text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full">{teamProjects.length}</span>
+              </h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {teamProjects.map((p, i) => renderProjectCard(p, i))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filtered.map((project, i) => renderProjectCard(project, i))}
+          </div>
+        );
+      })()}
     </motion.div>
   );
 }

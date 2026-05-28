@@ -128,7 +128,7 @@ export const timesheetAPI = {
   getMyTimesheets: (params?: any) => api.get('/timesheets/my', { params }),
   getWeekTimesheet: (weekStartDate: string) =>
     api.get('/timesheets/week', { params: { weekStartDate } }),
-  getAssignedProjects: () => api.get('/timesheets/assigned-projects'),
+  getAssignedProjects: (scope?: string) => api.get('/timesheets/assigned-projects', { params: scope ? { scope } : {} }),
   getMilestonesByRole: (role: string) => api.get(`/timesheets/milestones/role/${role}`),
   save: (data: any) => api.post('/timesheets/save', data),
   // Entry-level submit/recall/delete
@@ -144,7 +144,7 @@ export const timesheetAPI = {
   getPendingApprovals: (params?: any) => api.get('/timesheets/approvals', { params }),
   approvalAction: (entryIds: string[], action: 'approve' | 'reject', comments?: string) =>
     api.post('/timesheets/approvals/action', { entryIds, action, comments }),
-  // Admin/RM: view employee's specific week timesheet (read-only)
+  // Admin/RM: view employee's specific week timesheet (read-only) — employeeId is the employee_id string like CT26-0001
   viewEmployeeWeekTimesheet: (employeeId: string, weekStartDate: string) =>
     api.get(`/timesheets/employee/${employeeId}/week`, { params: { weekStartDate } }),
   // Admin: view employee timesheets

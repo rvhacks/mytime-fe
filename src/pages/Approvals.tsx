@@ -182,6 +182,16 @@ export default function Approvals() {
                                 Resubmitted
                               </span>
                             )}
+                            {entry.rejectionHistory && entry.rejectionHistory.length > 0 && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setViewDialog(entry.id); }}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/30 transition-colors"
+                                title="View rejection history"
+                              >
+                                <History className="w-3 h-3" />
+                                {entry.rejectionHistory.length} {entry.rejectionHistory.length === 1 ? 'rejection' : 'rejections'}
+                              </button>
+                            )}
                           </div>
                         </td>
                         <td className="p-3 text-sm text-[var(--text-secondary)]">{entry.milestoneName || '—'}</td>

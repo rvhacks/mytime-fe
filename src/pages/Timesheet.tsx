@@ -102,13 +102,16 @@ export default function Timesheet() {
 
   // ---- Read-only View Mode (for RM/Admin viewing employee timesheet) ----
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
-  const viewEmployeeId = urlParams.get('viewEmployeeId');
-  const viewEmployeeName = urlParams.get('viewEmployeeName');
+  const viewEmployeeId = urlParams.get('viewEmployee'); // employee_id string like CT26-0001
+  const returnTo = urlParams.get('returnTo'); // 'reports' or 'admin-reports'
+  const returnTab = urlParams.get('returnTab'); // 'timesheets' for admin
+  const returnEmployee = urlParams.get('returnEmployee'); // employee_id for re-selection on back
   const isViewOnly = !!viewEmployeeId;
 
   // Separate state for the viewed employee's timesheet to avoid polluting the user's own store
   const [viewOnlyTimesheet, setViewOnlyTimesheet] = useState<TimesheetWeek | null>(null);
   const [viewOnlyLoading, setViewOnlyLoading] = useState(false);
+  const [viewEmployeeName, setViewEmployeeName] = useState<string>('');  // fetched from API
 
   const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string;role:string}[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -121,7 +124,7 @@ export default function Timesheet() {
     }
     fetchTimesheets();
     setProjectsLoading(true);
-    timesheetAPI.getAssignedProjects().then((res) => {
+    timesheetAPI.getAssignedProjects('own').then((res) => {
       const raw = res.data.data || [];
       setAssignedProjects(raw.map((p: any) => ({
         id: p.id,
@@ -296,13 +299,16 @@ export default function Timesheet() {
     const start = formatLocalDate(monday);
     const end = formatLocalDate(sunday);
     if (isViewOnly && viewEmployeeId) {
-      // Fetch the employee's timesheet via the view API
+      // Fetch the employee's timesheet via the view API (employee_id like CT26-0001)
       setViewOnlyLoading(true);
       timesheetAPI.viewEmployeeWeekTimesheet(viewEmployeeId, start)
         .then((res) => {
           const ts = res.data.data;
+          // Set employee name from API response
+          const emp = res.data.employee;
+          if (emp?.fullName) setViewEmployeeName(emp.fullName);
           if (ts && ts.entries && ts.entries.length > 0) {
-            const rows: TimesheetRow[] = (ts.entries || []).map((e: any) => ({
+            const mappedRows: TimesheetRow[] = (ts.entries || []).map((e: any) => ({
               id: e.id,
               projectId: e.project_id || e.project?.id || '',
               milestoneId: e.milestone_id || e.milestone?.id || '',
@@ -327,10 +333,10 @@ export default function Timesheet() {
               resubmissionCount: e.resubmission_count || 0,
               rejectionHistory: e.rejection_history || [],
             }));
-            const totalHours = rows.reduce((s, r) => s + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
+            const totalHours = mappedRows.reduce((s, r) => s + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
             setViewOnlyTimesheet({
               id: ts.id, userId: ts.user_id, weekStartDate: start, weekEndDate: end,
-              totalHours, rows,
+              totalHours, rows: mappedRows,
             });
           } else {
             setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
@@ -463,12 +469,30 @@ export default function Timesheet() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+          className="flex items-center justify-between p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
         >
-          <Eye className="w-5 h-5 text-blue-500" />
-          <p className="text-sm text-blue-700 dark:text-blue-300">
-            Viewing <strong>{viewEmployeeName || 'employee'}</strong>'s timesheet (read-only)
-          </p>
+          <div className="flex items-center gap-3">
+            <Eye className="w-5 h-5 text-blue-500" />
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Viewing <strong>{viewEmployeeName || viewEmployeeId || 'employee'}</strong>'s timesheet <span className="text-blue-400">(read-only)</span>
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (returnTo === 'admin-reports') {
+                navigate(`/reports${returnTab ? `?tab=${returnTab}` : ''}${returnEmployee ? `&employee=${returnEmployee}` : ''}`);
+              } else if (returnTo === 'reports') {
+                navigate(`/employee-reports${returnEmployee ? `?employee=${returnEmployee}` : ''}`);
+              } else {
+                navigate(-1);
+              }
+            }}
+            className="text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+          >
+            ← Back to Reports
+          </Button>
         </motion.div>
       )}
 

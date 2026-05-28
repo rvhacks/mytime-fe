@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Filter, Clock, CheckCircle2, DollarSign, Receipt, X, FileSpreadsheet, Users, ChevronDown, Eye, ListFilter } from 'lucide-react';
@@ -95,7 +95,10 @@ function formatDateRange(start: string, end: string): string {
 export default function Reports() {
   // ========== Tab state ==========
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'summary' | 'timesheets'>('summary');
+
+  // Restore tab/employee selection from URL params (after back navigation)
+  const initParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const [activeTab, setActiveTab] = useState<'summary' | 'timesheets'>(initParams.get('tab') === 'timesheets' ? 'timesheets' : 'summary');
 
   // ========== SUMMARY TAB STATE ==========
   const [rows, setRows] = useState<ReportRow[]>([]);
@@ -806,7 +809,7 @@ export default function Reports() {
                           </td>
                           <td className="py-3 px-4 text-center">
                             <button
-                              onClick={() => navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}&viewEmployeeId=${row.employeeId}&viewEmployeeName=${encodeURIComponent(row.employeeName)}`)}
+                              onClick={() => navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}&viewEmployee=${row.employeeId}&returnTo=admin-reports&returnTab=timesheets&returnEmployee=${row.employeeId}`)}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors"
                               title="View this employee's timesheet"
                             >

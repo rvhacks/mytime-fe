@@ -326,8 +326,8 @@ export default function EmployeeReports() {
                             if (selectedEmployee) {
                               // RM viewing a direct report's timesheet — read-only mode
                               const emp = directReports.find((m: any) => m.id === selectedEmployee);
-                              const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : 'Employee';
-                              navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}&viewEmployeeId=${selectedEmployee}&viewEmployeeName=${encodeURIComponent(empName)}`);
+                              const empCode = emp?.employeeId || emp?.employee_id || '';
+                              navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}&viewEmployee=${empCode}&returnTo=reports&returnEmployee=${empCode}`);
                             } else {
                               // Viewing own timesheet — normal editable mode
                               navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}`);
