@@ -136,7 +136,7 @@ export default function Dashboard() {
     {
       title: 'Approval Rate',
       value: stats ? `${stats.approvalRate}%` : '—',
-      subtitle: 'Last 30 days',
+      subtitle: 'This month',
       icon: <CheckCircle2 className="w-5 h-5" />,
       color: 'text-purple-500',
       bg: 'bg-purple-50 dark:bg-purple-900/20',
@@ -167,7 +167,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            Here's your weekly overview for {currentWeekRange}
+            Here's your monthly overview for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </p>
         </div>
         {!isAdmin && (

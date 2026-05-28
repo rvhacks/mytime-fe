@@ -144,6 +144,9 @@ export const timesheetAPI = {
   getPendingApprovals: (params?: any) => api.get('/timesheets/approvals', { params }),
   approvalAction: (entryIds: string[], action: 'approve' | 'reject', comments?: string) =>
     api.post('/timesheets/approvals/action', { entryIds, action, comments }),
+  // Admin/RM: view employee's specific week timesheet (read-only)
+  viewEmployeeWeekTimesheet: (employeeId: string, weekStartDate: string) =>
+    api.get(`/timesheets/employee/${employeeId}/week`, { params: { weekStartDate } }),
   // Admin: view employee timesheets
   getEmployeeTimesheets: (employeeId: string, params?: any) =>
     api.get(`/timesheets/employee/${employeeId}`, { params }),

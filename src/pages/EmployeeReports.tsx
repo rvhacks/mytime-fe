@@ -322,7 +322,17 @@ export default function EmployeeReports() {
                       </td>
                       <td className="py-3 px-4 text-center">
                         <button
-                          onClick={() => navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}`)}
+                          onClick={() => {
+                            if (selectedEmployee) {
+                              // RM viewing a direct report's timesheet — read-only mode
+                              const emp = directReports.find((m: any) => m.id === selectedEmployee);
+                              const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : 'Employee';
+                              navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}&viewEmployeeId=${selectedEmployee}&viewEmployeeName=${encodeURIComponent(empName)}`);
+                            } else {
+                              // Viewing own timesheet — normal editable mode
+                              navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}`);
+                            }
+                          }}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors"
                           title="View this week's timesheet"
                         >

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -13,12 +13,15 @@ import {
   Loader2,
   RotateCcw,
   History,
+  Eye,
+  ArrowLeft,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useTimesheetStore } from '@/store/timesheetStore';
 import { timesheetAPI } from '@/services/api';
+import type { TimesheetWeek, TimesheetRow } from '@/types';
 import toast, { Toaster } from 'react-hot-toast';
 
 // ---------------------------------------------------------------------------
@@ -95,15 +98,31 @@ export default function Timesheet() {
     _lastSavedHash,
   } = useTimesheetStore();
 
+  const navigate = useNavigate();
+
+  // ---- Read-only View Mode (for RM/Admin viewing employee timesheet) ----
+  const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const viewEmployeeId = urlParams.get('viewEmployeeId');
+  const viewEmployeeName = urlParams.get('viewEmployeeName');
+  const isViewOnly = !!viewEmployeeId;
+
+  // Separate state for the viewed employee's timesheet to avoid polluting the user's own store
+  const [viewOnlyTimesheet, setViewOnlyTimesheet] = useState<TimesheetWeek | null>(null);
+  const [viewOnlyLoading, setViewOnlyLoading] = useState(false);
+
   const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string;role:string}[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
 
   useEffect(() => {
+    if (isViewOnly) {
+      // In view-only mode, we don't fetch the logged-in user's timesheets or projects
+      setProjectsLoading(false);
+      return;
+    }
     fetchTimesheets();
     setProjectsLoading(true);
     timesheetAPI.getAssignedProjects().then((res) => {
       const raw = res.data.data || [];
-      // API returns FLATTENED project objects with assignment_role
       setAssignedProjects(raw.map((p: any) => ({
         id: p.id,
         name: p.name || '',
@@ -166,16 +185,16 @@ export default function Timesheet() {
   // Determine which timesheet to show
   const isCurrentWeek = weekOffset === 0;
 
-  // Always use currentTimesheet — loadWeek sets it for any week
-  const activeTimesheet = currentTimesheet;
+  // In view-only mode use the separate state; otherwise use the store
+  const activeTimesheet = isViewOnly ? viewOnlyTimesheet : currentTimesheet;
 
   // Backdate support: allow editing past weeks (configurable limit)
   const BACKDATE_LIMIT_WEEKS = 4;
   const isBackdatedBeyondLimit = weekOffset < -BACKDATE_LIMIT_WEEKS;
   // Per-row locking: a row is locked if its status is submitted or approved
   const isRowLocked = (status: string) => ['submitted', 'resubmitted', 'approved'].includes(status);
-  // Global lock only for backdate limit
-  const isGlobalLocked = isBackdatedBeyondLimit;
+  // Global lock: either backdate limit OR view-only mode
+  const isGlobalLocked = isBackdatedBeyondLimit || isViewOnly;
   // Legacy compat
   const isLocked = isGlobalLocked;
 
@@ -203,7 +222,7 @@ export default function Timesheet() {
       isFirstRender.current = false;
       return;
     }
-    if (isLocked) return;
+    if (isLocked || isViewOnly) return;
     // A row is "saveable" only when it has project + at least 1 hour entered
     const saveableRows = currentTimesheet.rows.filter(r =>
       r.projectId &&
@@ -276,7 +295,54 @@ export default function Timesheet() {
     sunday.setDate(sunday.getDate() + 6);
     const start = formatLocalDate(monday);
     const end = formatLocalDate(sunday);
-    loadWeek(start, end);
+    if (isViewOnly && viewEmployeeId) {
+      // Fetch the employee's timesheet via the view API
+      setViewOnlyLoading(true);
+      timesheetAPI.viewEmployeeWeekTimesheet(viewEmployeeId, start)
+        .then((res) => {
+          const ts = res.data.data;
+          if (ts && ts.entries && ts.entries.length > 0) {
+            const rows: TimesheetRow[] = (ts.entries || []).map((e: any) => ({
+              id: e.id,
+              projectId: e.project_id || e.project?.id || '',
+              milestoneId: e.milestone_id || e.milestone?.id || '',
+              taskDescription: e.task_description || '',
+              billable: e.billable !== false,
+              hours: {
+                mon: Number(e.hours_mon) || 0, tue: Number(e.hours_tue) || 0,
+                wed: Number(e.hours_wed) || 0, thu: Number(e.hours_thu) || 0,
+                fri: Number(e.hours_fri) || 0, sat: Number(e.hours_sat) || 0,
+                sun: Number(e.hours_sun) || 0,
+              },
+              status: (e.status || 'draft'),
+              submittedAt: e.submitted_at || undefined,
+              reviewedBy: e.reviewed_by || undefined,
+              reviewerName: e.reviewer ? `${e.reviewer.first_name} ${e.reviewer.last_name}` : undefined,
+              reviewedAt: e.reviewed_at || undefined,
+              reviewComments: e.review_comments || undefined,
+              projectName: e.project?.name || '',
+              projectCode: e.project?.project_code || '',
+              projectColor: e.project?.color || '',
+              milestoneName: e.milestone?.name || '',
+              resubmissionCount: e.resubmission_count || 0,
+              rejectionHistory: e.rejection_history || [],
+            }));
+            const totalHours = rows.reduce((s, r) => s + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
+            setViewOnlyTimesheet({
+              id: ts.id, userId: ts.user_id, weekStartDate: start, weekEndDate: end,
+              totalHours, rows,
+            });
+          } else {
+            setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
+          }
+        })
+        .catch(() => {
+          setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
+        })
+        .finally(() => setViewOnlyLoading(false));
+    } else {
+      loadWeek(start, end);
+    }
   }, [weekOffset]);
 
   // Status badge with auto-save indicator
@@ -321,7 +387,9 @@ export default function Timesheet() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Timesheet</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+            {isViewOnly ? `${viewEmployeeName || 'Employee'}'s Timesheet` : 'Timesheet'}
+          </h1>
           <div className="flex items-center gap-3 mt-1">
             <p className="text-[var(--text-secondary)] text-sm">
               Week: {formatWeekRange(displayMonday)}
@@ -365,14 +433,24 @@ export default function Timesheet() {
             </button>
           </div>
 
-          {/* Submit / Recall */}
-          {!isGlobalLocked && rows.some(r => ['draft','recalled','rejected'].includes(r.status) && r.projectId) && (
+          {/* Back button for view-only mode */}
+          {isViewOnly && (
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+          )}
+          {/* Submit / Recall — hidden in view-only mode */}
+          {!isViewOnly && !isGlobalLocked && rows.some(r => ['draft','recalled','rejected'].includes(r.status) && r.projectId) && (
             <Button size="sm" onClick={handleSubmitAll} isLoading={isSaving}>
               <Send className="w-4 h-4" />
               Submit All
             </Button>
           )}
-          {!isGlobalLocked && rows.some(r => r.status === 'submitted' || r.status === 'resubmitted') && (
+          {!isViewOnly && !isGlobalLocked && rows.some(r => r.status === 'submitted' || r.status === 'resubmitted') && (
             <Button size="sm" variant="outline" onClick={handleRecallAll} isLoading={isSaving}>
               Recall Submitted
             </Button>
@@ -380,8 +458,22 @@ export default function Timesheet() {
         </div>
       </div>
 
-      {/* Locked Banner — only for backdate limit */}
-      {activeTimesheet && isGlobalLocked && (
+      {/* View-Only Banner */}
+      {isViewOnly && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+        >
+          <Eye className="w-5 h-5 text-blue-500" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Viewing <strong>{viewEmployeeName || 'employee'}</strong>'s timesheet (read-only)
+          </p>
+        </motion.div>
+      )}
+
+      {/* Locked Banner — only for backdate limit (not in view-only mode) */}
+      {!isViewOnly && activeTimesheet && isGlobalLocked && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -395,18 +487,22 @@ export default function Timesheet() {
       )}
 
       {/* Empty State — no rows at all */}
-      {rows.length === 0 && !isGlobalLocked && (
+      {rows.length === 0 && !isBackdatedBeyondLimit && (
         <Card>
           <CardContent className="p-12 text-center">
             <AlertCircle className="w-10 h-10 mx-auto text-[var(--text-tertiary)] mb-3" />
-            <p className="text-lg font-medium text-[var(--text-primary)]">No timesheet submitted for this week</p>
+            <p className="text-lg font-medium text-[var(--text-primary)]">
+              {isViewOnly ? 'No timesheet entries for this week' : 'No timesheet submitted for this week'}
+            </p>
             <p className="text-sm text-[var(--text-tertiary)] mt-1">
               {formatWeekRange(displayMonday)}
             </p>
-            <Button size="sm" className="mt-4" onClick={() => addRow()}>
-              <Plus className="w-4 h-4" />
-              Add Timesheet Entry
-            </Button>
+            {!isViewOnly && (
+              <Button size="sm" className="mt-4" onClick={() => addRow()}>
+                <Plus className="w-4 h-4" />
+                Add Timesheet Entry
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -463,6 +559,9 @@ export default function Timesheet() {
                           >
                             {/* Project */}
                             <td className="p-3">
+                              {isViewOnly ? (
+                                <span className="text-sm text-[var(--text-primary)] font-medium">{row.projectName || row.projectCode || '—'}</span>
+                              ) : (
                               <select
                                 value={row.projectId}
                                 onChange={(e) => {
@@ -480,9 +579,13 @@ export default function Timesheet() {
                                   <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
                               </select>
+                              )}
                             </td>
                             {/* Milestone */}
                             <td className="p-3">
+                              {isViewOnly ? (
+                                <span className="text-sm text-[var(--text-secondary)]">{row.milestoneName || '—'}</span>
+                              ) : (
                               <select
                                 value={row.milestoneId}
                                 onChange={(e) => updateRowField(row.id, 'milestoneId', e.target.value)}
@@ -494,6 +597,7 @@ export default function Timesheet() {
                                   <option key={m.id} value={m.id}>{m.name}</option>
                                 ))}
                               </select>
+                              )}
                             </td>
                             {/* Task */}
                             <td className="p-3">

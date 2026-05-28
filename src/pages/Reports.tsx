@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Filter, Clock, CheckCircle2, DollarSign, Receipt, X, FileSpreadsheet, Users, ChevronDown, Eye, ListFilter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -73,6 +74,10 @@ function formatHours(h: number): string {
   return h % 1 === 0 ? String(h) : h.toFixed(1);
 }
 
+function normalizeDate(d: string): string {
+  return d ? d.slice(0, 10) : d;
+}
+
 function getMonthName(): string {
   return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
@@ -89,6 +94,7 @@ function formatDateRange(start: string, end: string): string {
 
 export default function Reports() {
   // ========== Tab state ==========
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'summary' | 'timesheets'>('summary');
 
   // ========== SUMMARY TAB STATE ==========
@@ -729,12 +735,13 @@ export default function Reports() {
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">Billable</th>
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">Status</th>
                       <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">Comments</th>
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pastLoading ? (
                       <tr>
-                        <td colSpan={8} className="py-16 text-center">
+                        <td colSpan={9} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-3">
                             <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
                             <span className="text-sm text-[var(--text-secondary)]">Loading timesheets...</span>
@@ -743,7 +750,7 @@ export default function Reports() {
                       </tr>
                     ) : pastRows.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-16 text-center">
+                        <td colSpan={9} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2">
                             <FileSpreadsheet className="w-10 h-10 text-[var(--text-tertiary)]" />
                             <span className="text-sm font-medium text-[var(--text-secondary)]">No timesheets found</span>
@@ -796,6 +803,16 @@ export default function Reports() {
                             <span className="text-xs text-[var(--text-secondary)] truncate block max-w-[160px]" title={row.reviewComments}>
                               {row.reviewComments || '—'}
                             </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => navigate(`/timesheet?weekStart=${normalizeDate(row.weekStartDate)}&viewEmployeeId=${row.employeeId}&viewEmployeeName=${encodeURIComponent(row.employeeName)}`)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors"
+                              title="View this employee's timesheet"
+                            >
+                              <Eye className="w-3 h-3" />
+                              View
+                            </button>
                           </td>
                         </motion.tr>
                       ))
