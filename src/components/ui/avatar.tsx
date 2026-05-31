@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { getInitials } from '@/lib/utils';
 
 interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
-  src?: string;
+  src?: string | null;
   name: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }
@@ -25,9 +25,15 @@ const colorMap = [
 ];
 
 function Avatar({ src, name, size = 'md', className, ...props }: AvatarProps) {
+  const [imgError, setImgError] = React.useState(false);
   const colorIndex = name.charCodeAt(0) % colorMap.length;
 
-  if (src) {
+  // Reset error state when src changes
+  React.useEffect(() => {
+    setImgError(false);
+  }, [src]);
+
+  if (src && !imgError) {
     return (
       <div
         className={cn(
@@ -37,7 +43,12 @@ function Avatar({ src, name, size = 'md', className, ...props }: AvatarProps) {
         )}
         {...props}
       >
-        <img src={src} alt={name} className="h-full w-full object-cover" />
+        <img
+          src={src}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={() => setImgError(true)}
+        />
       </div>
     );
   }

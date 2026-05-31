@@ -20,6 +20,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { userAPI } from '@/services/api';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { Badge } from '@/components/ui/badge';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -182,7 +183,7 @@ export function Topbar() {
               className="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-all duration-200"
               id="user-menu-btn"
             >
-              {user && <Avatar name={user.name} size="sm" />}
+              {user && <Avatar src={buildAvatarUrl(user.avatar)} name={user.name} size="sm" />}
               <ChevronDown className="w-3 h-3 text-[var(--text-tertiary)]" />
             </button>
 

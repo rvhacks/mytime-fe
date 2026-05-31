@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { Pagination } from '@/components/shared/Pagination';
 import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
 import { useManagementStore, generatePassword } from '@/store/managementStore';
@@ -297,7 +298,7 @@ export default function Employees() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <Avatar name={`${e.firstName} ${e.lastName}`} size="sm" />
+                        <Avatar src={buildAvatarUrl(e.avatar_path)} name={`${e.firstName} ${e.lastName}`} size="sm" />
                         <span className="text-sm font-medium text-[var(--text-primary)]">
                           {e.firstName} {e.lastName}
                         </span>

@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { Pagination } from '@/components/shared/Pagination';
 import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
 import { useManagementStore } from '@/store/managementStore';
@@ -78,6 +79,10 @@ export default function Assignments() {
   const getEmpName = (id: string) => {
     const e = employees.find((x) => x.id === id);
     return e ? `${e.firstName} ${e.lastName}` : id;
+  };
+  const getEmpAvatar = (id: string) => {
+    const e = employees.find((x) => x.id === id);
+    return e?.avatar_path;
   };
   const getProjName = (id: string) => projects.find((x) => x.id === id)?.name || id;
 
@@ -185,7 +190,7 @@ export default function Assignments() {
                   <tr key={a.id} className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <Avatar name={getEmpName(a.employeeId)} size="sm" />
+                        <Avatar src={buildAvatarUrl(getEmpAvatar(a.employeeId))} name={getEmpName(a.employeeId)} size="sm" />
                         <span className="text-sm font-medium text-[var(--text-primary)]">{getEmpName(a.employeeId)}</span>
                       </div>
                     </td>

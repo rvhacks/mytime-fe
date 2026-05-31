@@ -3,17 +3,9 @@ import { motion } from 'framer-motion';
 import { Users, Mail, Phone, UserCheck, Loader2, Search, Filter, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { userAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
-
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
-
-function buildAvatarSrc(avatarUrl: string | null | undefined): string | null {
-  if (!avatarUrl) return null;
-  if (avatarUrl.startsWith('http')) return avatarUrl;
-  // Relative URL like /uploads/avatars/xxx.jpg
-  return `${API_BASE}${avatarUrl.startsWith('/') ? '' : '/'}${avatarUrl}`;
-}
 
 interface TeamMember {
   id: string;
@@ -83,8 +75,6 @@ export default function MyTeam() {
   }
 
   const MemberCard = ({ member, index }: { member: TeamMember; index: number }) => {
-    const src = buildAvatarSrc(member.avatarUrl);
-    const [imgError, setImgError] = useState(false);
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -94,16 +84,7 @@ export default function MyTeam() {
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
-              {src && !imgError ? (
-                <img
-                  src={src}
-                  alt={member.name}
-                  className="w-12 h-12 rounded-xl object-cover"
-                  onError={() => setImgError(true)}
-                />
-              ) : (
-                <Avatar name={member.name} size="md" />
-              )}
+              <Avatar src={buildAvatarUrl(member.avatarUrl)} name={member.name} size="md" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{member.name}</p>
                 {member.designation && (

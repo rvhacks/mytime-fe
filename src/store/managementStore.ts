@@ -68,6 +68,7 @@ function mapEmployee(u: any): Employee {
     generatedPassword: '',
     reportingManagerId: u.reporting_manager_id || u.reportingManagerId || '',
     reportingManagerName: rm ? `${rm.first_name || rm.firstName || ''} ${rm.last_name || rm.lastName || ''}`.trim() : '',
+    avatar_path: u.avatar_path || '',
     status: u.status || 'active',
     createdAt: (u.created_at || u.createdAt || '').toString().slice(0, 10),
   };

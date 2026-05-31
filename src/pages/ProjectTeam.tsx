@@ -11,6 +11,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { useAdminStore } from '@/store/adminStore';
 import { useManagementStore } from '@/store/managementStore';
 import { useEffect } from 'react';
@@ -62,6 +63,7 @@ export default function ProjectTeam() {
           role: 'employee' as const,
           hoursThisWeek: 0,
           submissionStatus: 'pending' as const,
+          avatarUrl: (e as any).avatar_path || (e as any).avatarUrl || '',
         };
       });
   }, [project, employees, assignments, designations, projectId]);
@@ -158,7 +160,7 @@ export default function ProjectTeam() {
               <CardContent className="p-6">
                 {/* Profile Header */}
                 <div className="flex items-center gap-4 mb-5">
-                  <Avatar name={member.name} size="lg" />
+                  <Avatar src={buildAvatarUrl(member.avatarUrl)} name={member.name} size="lg" />
                   <div className="flex-1 min-w-0">
                     <h3 className="text-base font-semibold text-[var(--text-primary)] truncate group-hover:text-brand-500 transition-colors">
                       {member.name}

@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle, MessageSquare, Filter, Clock, Users, Eye, Rotate
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/States';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,10 +38,10 @@ export default function Approvals() {
   // Group entries by employee
   const grouped = approvals.reduce((acc, entry) => {
     const key = entry.userId;
-    if (!acc[key]) acc[key] = { userName: entry.userName, entries: [] };
+    if (!acc[key]) acc[key] = { userName: entry.userName, userAvatar: entry.userAvatar, entries: [] };
     acc[key].entries.push(entry);
     return acc;
-  }, {} as Record<string, { userName: string; entries: typeof approvals }>);
+  }, {} as Record<string, { userName: string; userAvatar?: string; entries: typeof approvals }>);
 
   const toggleEntry = (id: string) => {
     setSelectedEntries((prev) => {
@@ -119,7 +120,7 @@ export default function Approvals() {
         <Card key={userId}>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-3">
-              <Avatar name={group.userName} size="sm" />
+              <Avatar src={buildAvatarUrl(group.userAvatar)} name={group.userName} size="sm" />
               <div>
                 <CardTitle className="text-base">{group.userName}</CardTitle>
                 <p className="text-xs text-[var(--text-tertiary)]">

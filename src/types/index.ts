@@ -42,6 +42,7 @@ export interface Employee {
   generatedPassword: string;
   reportingManagerId?: string;
   reportingManagerName?: string;
+  avatar_path?: string;
   status: 'active' | 'inactive';
   createdAt: string;
 }
@@ -148,6 +149,7 @@ export interface ApprovalEntry {
   timesheetId: string;
   userId: string;
   userName: string;
+  userAvatar?: string;
   weekStartDate: string;
   weekEndDate: string;
   projectId: string;
@@ -228,6 +230,7 @@ export interface ManagerApprovalSummary {
   lastName: string;
   email: string;
   employeeId?: string;
+  avatarUrl?: string;
   pendingCount: number;
   totalDirectReports: number;
 }

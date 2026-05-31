@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/ui/avatar';
+import { buildAvatarUrl } from '@/lib/avatarUtils';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -215,7 +216,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             'flex items-center gap-3 px-3 py-2 rounded-lg',
             collapsed ? 'justify-center' : ''
           )}>
-            <Avatar name={user.name} size="sm" />
+            <Avatar src={buildAvatarUrl(user?.avatar)} name={user.name} size="sm" />
             <AnimatePresence>
               {!collapsed && (
                 <motion.div

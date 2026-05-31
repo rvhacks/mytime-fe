@@ -84,6 +84,7 @@ function mapApprovalEntry(entry: any): ApprovalEntry {
     timesheetId: entry.timesheet_id || ts.id || '',
     userId: ts.user_id || user.id || '',
     userName: user.first_name ? `${user.first_name} ${user.last_name}` : 'Unknown',
+    userAvatar: user.avatar_path || user.avatarUrl || '',
     weekStartDate: ts.week_start_date || '',
     weekEndDate: ts.week_end_date || '',
     projectId: entry.project_id || project.id || '',
