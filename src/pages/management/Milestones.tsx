@@ -33,9 +33,7 @@ export default function Milestones() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [roles, setRoles] = useState<{key: string, label: string}[]>([]);
-
-  const getRoleLabel = (key: string) => roles.find(r => r.key === key)?.label || key;
+  const [roles, setRoles] = useState<{id: string, label: string}[]>([]);
 
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
@@ -146,7 +144,7 @@ export default function Milestones() {
           >
             <option value="all">All Roles</option>
             {roles.map((r) => (
-              <option key={r.key} value={r.key}>{r.label}</option>
+              <option key={r.id} value={r.label}>{r.label}</option>
             ))}
           </select>
         </div>
@@ -175,7 +173,7 @@ export default function Milestones() {
                     </td>
                     <td className="p-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
-                        {getRoleLabel(m.role)}
+                        {m.role}
                       </span>
                     </td>
                     <td className="p-4 text-sm text-[var(--text-secondary)] max-w-[300px] truncate">{m.description || '—'}</td>
@@ -231,7 +229,7 @@ export default function Milestones() {
               >
                 <option value="">Select role</option>
                 {roles.map((r) => (
-                  <option key={r.key} value={r.key}>{r.label}</option>
+                  <option key={r.id} value={r.label}>{r.label}</option>
                 ))}
               </select>
             </div>
@@ -270,7 +268,7 @@ export default function Milestones() {
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 {roles.map((r) => (
-                  <option key={r.key} value={r.key}>{r.label}</option>
+                  <option key={r.id} value={r.label}>{r.label}</option>
                 ))}
               </select>
             </div>

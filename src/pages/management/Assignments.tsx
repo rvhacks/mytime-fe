@@ -31,9 +31,7 @@ export default function Assignments() {
   const [limit, setLimit] = useState(10);
   const [filterEmpId, setFilterEmpId] = useState<string>('');
   const [filterProjId, setFilterProjId] = useState<string>('');
-  const [roles, setRoles] = useState<{key: string, label: string}[]>([]);
-
-  const getRoleLabel = (key: string) => roles.find(r => r.key === key)?.label || key;
+  const [roles, setRoles] = useState<{id: string, label: string}[]>([]);
 
   // Pre-populate project filter from URL query
   const [searchParams] = useSearchParams();
@@ -199,7 +197,7 @@ export default function Assignments() {
                     <td className="p-4 text-sm text-[var(--text-secondary)]">{getProjName(a.projectId)}</td>
                     <td className="p-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
-                        {getRoleLabel(a.role)}
+                        {a.role}
                       </span>
                     </td>
                     <td className="p-4 text-sm text-[var(--text-secondary)]">
@@ -272,7 +270,7 @@ export default function Assignments() {
               >
                 <option value="">Select role</option>
                 {roles.map((r) => (
-                  <option key={r.key} value={r.key}>{r.label}</option>
+                  <option key={r.id} value={r.label}>{r.label}</option>
                 ))}
               </select>
             </div>
