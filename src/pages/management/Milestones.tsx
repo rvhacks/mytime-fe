@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/shared/Pagination';
-import { milestoneAPI } from '@/services/api';
-import type { ProjectRole, PaginationInfo } from '@/types';
-import { PROJECT_ROLE_KEYS, getRoleLabel } from '@/constants/roles';
+import { milestoneAPI, roleAPI } from '@/services/api';
+import type { PaginationInfo } from '@/types';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -18,7 +17,7 @@ interface MilestoneItem {
   id: string;
   name: string;
   description: string;
-  role: ProjectRole;
+  role: string;
 }
 
 const defaultPagination: PaginationInfo = { page: 1, limit: 10, total: 0, totalPages: 1 };
@@ -34,6 +33,9 @@ export default function Milestones() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [roles, setRoles] = useState<{key: string, label: string}[]>([]);
+
+  const getRoleLabel = (key: string) => roles.find(r => r.key === key)?.label || key;
 
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
@@ -53,7 +55,10 @@ export default function Milestones() {
     setIsLoading(false);
   }, [search]);
 
-  useEffect(() => { fetchMilestones(1, limit); }, []);
+  useEffect(() => {
+    fetchMilestones(1, limit);
+    roleAPI.getAll().then(r => setRoles(r.data.data || [])).catch(() => {});
+  }, []);
   useEffect(() => { fetchMilestones(page, limit); }, [page, limit]);
 
   useEffect(() => {
@@ -140,8 +145,8 @@ export default function Milestones() {
             className="h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
           >
             <option value="all">All Roles</option>
-            {PROJECT_ROLE_KEYS.map((r) => (
-              <option key={r} value={r}>{getRoleLabel(r)}</option>
+            {roles.map((r) => (
+              <option key={r.key} value={r.key}>{r.label}</option>
             ))}
           </select>
         </div>
@@ -225,8 +230,8 @@ export default function Milestones() {
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="">Select role</option>
-                {PROJECT_ROLE_KEYS.map((r) => (
-                  <option key={r} value={r}>{getRoleLabel(r)}</option>
+                {roles.map((r) => (
+                  <option key={r.key} value={r.key}>{r.label}</option>
                 ))}
               </select>
             </div>
@@ -264,8 +269,8 @@ export default function Milestones() {
                 value={formRole} onChange={(e) => setFormRole(e.target.value)}
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
-                {PROJECT_ROLE_KEYS.map((r) => (
-                  <option key={r} value={r}>{getRoleLabel(r)}</option>
+                {roles.map((r) => (
+                  <option key={r.key} value={r.key}>{r.label}</option>
                 ))}
               </select>
             </div>

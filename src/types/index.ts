@@ -4,7 +4,8 @@
 
 export type UserRole = 'employee' | 'admin';
 
-export type ProjectRole = 'IC' | 'TC' | 'MS' | 'TPM' | 'PM' | 'QA' | 'BA';
+// ProjectRole is now dynamic (fetched from /api/roles); using string type
+export type ProjectRole = string;
 
 export type EntryStatus = 'draft' | 'submitted' | 'resubmitted' | 'recalled' | 'approved' | 'rejected';
 
@@ -67,14 +68,14 @@ export interface Milestone {
   id: string;
   name: string;
   description?: string;
-  role: ProjectRole;
+  role: string;
 }
 
 export interface ProjectAssignment {
   id: string;
   employeeId: string;
   projectId: string;
-  role: ProjectRole;
+  role: string;
   assignedAt: string;
 }
 
@@ -134,7 +135,6 @@ export interface TeamMember {
   phone: string;
   role: UserRole;
   designation: string;
-  department: string;
   avatar?: string;
   status: 'active' | 'inactive';
   hoursThisWeek: number;

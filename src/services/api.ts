@@ -109,11 +109,16 @@ export const milestoneAPI = {
   delete: (id: string) => api.delete(`/admin/milestones/${id}`),
 };
 
+// ---- ROLES (master data) ----
+export const roleAPI = {
+  getAll: () => api.get('/roles'),
+};
+
 // ---- ADMIN: DASHBOARD ----
 export const dashboardAPI = {
   getStats: () => api.get('/admin/dashboard/stats'),
   getActivity: () => api.get('/admin/dashboard/activity'),
-  getRoleConstants: () => api.get('/admin/role-constants'),
+  getRoleConstants: () => api.get('/roles'), // now uses the public roles endpoint
 };
 
 // ---- ADMIN: APPROVAL MANAGER DASHBOARD ----

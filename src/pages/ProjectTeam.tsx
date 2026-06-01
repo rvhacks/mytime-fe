@@ -58,7 +58,6 @@ export default function ProjectTeam() {
           email: e.email,
           phone: e.mobile,
           designation: desName,
-          department: '',
           status: e.status,
           role: 'employee' as const,
           hoursThisWeek: 0,
@@ -75,8 +74,7 @@ export default function ProjectTeam() {
       (m) =>
         m.name.toLowerCase().includes(q) ||
         m.designation.toLowerCase().includes(q) ||
-        m.email.toLowerCase().includes(q) ||
-        m.department.toLowerCase().includes(q)
+        m.email.toLowerCase().includes(q)
     );
   }, [teamMembers, search]);
 

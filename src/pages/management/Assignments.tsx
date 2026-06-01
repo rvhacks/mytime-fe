@@ -11,9 +11,7 @@ import { Pagination } from '@/components/shared/Pagination';
 import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
 import { useManagementStore } from '@/store/managementStore';
 import { useAdminStore } from '@/store/adminStore';
-import { employeeAPI, projectAPI } from '@/services/api';
-import type { ProjectRole } from '@/types';
-import { PROJECT_ROLE_KEYS, getRoleLabel } from '@/constants/roles';
+import { employeeAPI, projectAPI, roleAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -33,6 +31,9 @@ export default function Assignments() {
   const [limit, setLimit] = useState(10);
   const [filterEmpId, setFilterEmpId] = useState<string>('');
   const [filterProjId, setFilterProjId] = useState<string>('');
+  const [roles, setRoles] = useState<{key: string, label: string}[]>([]);
+
+  const getRoleLabel = (key: string) => roles.find(r => r.key === key)?.label || key;
 
   // Pre-populate project filter from URL query
   const [searchParams] = useSearchParams();
@@ -49,6 +50,7 @@ export default function Assignments() {
     loadPage(1, limit);
     fetchEmployees({ limit: 100 });
     fetchProjects({ limit: 100 });
+    roleAPI.getAll().then(r => setRoles(r.data.data || [])).catch(() => {});
   }, []);
   useEffect(() => { loadPage(page, limit); }, [page, limit]);
 
@@ -61,7 +63,7 @@ export default function Assignments() {
     await addAssignment({
       employeeId: form.employeeId,
       projectId: form.projectId,
-      role: form.role as ProjectRole,
+      role: form.role,
     });
     setForm(emptyForm); setShowAdd(false);
     toast.success('Employee assigned to project');
@@ -197,7 +199,7 @@ export default function Assignments() {
                     <td className="p-4 text-sm text-[var(--text-secondary)]">{getProjName(a.projectId)}</td>
                     <td className="p-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
-                        {getRoleLabel(a.role as ProjectRole)}
+                        {getRoleLabel(a.role)}
                       </span>
                     </td>
                     <td className="p-4 text-sm text-[var(--text-secondary)]">
@@ -269,8 +271,8 @@ export default function Assignments() {
                 className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="">Select role</option>
-                {PROJECT_ROLE_KEYS.map((r) => (
-                  <option key={r} value={r}>{getRoleLabel(r)}</option>
+                {roles.map((r) => (
+                  <option key={r.key} value={r.key}>{r.label}</option>
                 ))}
               </select>
             </div>
