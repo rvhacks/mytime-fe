@@ -55,7 +55,7 @@ export default function Milestones() {
 
   useEffect(() => {
     fetchMilestones(1, limit);
-    roleAPI.getAll().then(r => setRoles(r.data.data || [])).catch(() => {});
+    roleAPI.getAll().then(r => { console.log('Roles loaded:', r.data.data); setRoles(r.data.data || []); }).catch(e => console.error('Failed to load roles:', e));
   }, []);
   useEffect(() => { fetchMilestones(page, limit); }, [page, limit]);
 

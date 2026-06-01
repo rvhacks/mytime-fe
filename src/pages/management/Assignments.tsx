@@ -48,7 +48,7 @@ export default function Assignments() {
     loadPage(1, limit);
     fetchEmployees({ limit: 100 });
     fetchProjects({ limit: 100 });
-    roleAPI.getAll().then(r => setRoles(r.data.data || [])).catch(() => {});
+    roleAPI.getAll().then(r => { console.log('Roles loaded:', r.data.data); setRoles(r.data.data || []); }).catch(e => console.error('Failed to load roles:', e));
   }, []);
   useEffect(() => { loadPage(page, limit); }, [page, limit]);
 
