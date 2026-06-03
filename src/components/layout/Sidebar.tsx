@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Zap,
+
   Settings2,
   Tag,
   Users,
@@ -132,8 +132,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/25">
-            <Zap className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-xl bg-white/90 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/25 p-1">
+            <img src="/logo.png" alt="Crystal TS" className="w-full h-full object-contain" />
           </div>
           <AnimatePresence>
             {!collapsed && (

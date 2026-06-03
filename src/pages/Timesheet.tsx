@@ -14,7 +14,7 @@ import {
   RotateCcw,
   History,
   Eye,
-  ArrowLeft,
+
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -439,16 +439,6 @@ export default function Timesheet() {
             </button>
           </div>
 
-          {/* Back button for view-only mode */}
-          {isViewOnly && (
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
-          )}
           {/* Submit / Recall — hidden in view-only mode */}
           {!isViewOnly && !isGlobalLocked && rows.some(r => ['draft','recalled','rejected'].includes(r.status) && r.projectId) && (
             <Button size="sm" onClick={handleSubmitAll} isLoading={isSaving}>

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Lock, ArrowLeft, Zap, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowLeft, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,8 +76,8 @@ export default function ResetPasswordPage() {
         </Link>
 
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/90 flex items-center justify-center p-1">
+            <img src="/logo.png" alt="Crystal TS" className="w-full h-full object-contain" />
           </div>
         </div>
 

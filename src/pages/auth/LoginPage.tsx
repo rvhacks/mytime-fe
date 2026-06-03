@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Zap, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,8 +54,8 @@ export default function LoginPage() {
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center gap-3 mb-12">
-              <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
-                <Zap className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur flex items-center justify-center p-1.5">
+                <img src="/logo.png" alt="Crystal TS" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">My Time</h1>
@@ -70,25 +70,6 @@ export default function LoginPage() {
             <p className="text-lg text-white/50 max-w-md">
               The modern timesheet & workforce tracking system that helps teams stay productive and managers stay informed.
             </p>
-
-            <div className="mt-12 grid grid-cols-3 gap-6">
-              {[
-                { value: '10K+', label: 'Active Users' },
-                { value: '99.9%', label: 'Uptime' },
-                { value: '4.9★', label: 'Rating' },
-              ].map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + i * 0.1 }}
-                  className="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10"
-                >
-                  <p className="text-2xl font-bold text-white">{stat.value}</p>
-                  <p className="text-xs text-white/40 mt-1">{stat.label}</p>
-                </motion.div>
-              ))}
-            </div>
           </motion.div>
         </div>
       </div>
@@ -112,8 +93,8 @@ export default function LoginPage() {
           </div>
 
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/90 flex items-center justify-center p-1">
+              <img src="/logo.png" alt="Crystal TS" className="w-full h-full object-contain" />
             </div>
             <span className="text-xl font-bold text-[var(--text-primary)]">My Time</span>
           </div>
