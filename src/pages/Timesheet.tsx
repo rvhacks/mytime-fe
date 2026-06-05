@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { RejectionHistoryModal } from '@/components/shared/RejectionHistoryModal';
 import { useTimesheetStore } from '@/store/timesheetStore';
 import { timesheetAPI } from '@/services/api';
 import type { TimesheetWeek, TimesheetRow } from '@/types';
@@ -220,6 +221,7 @@ export default function Timesheet() {
   // Auto-save draft on any change (debounced) — only when meaningful data exists
   const isFirstRender = useRef(true);
   const [autoSaveState, setAutoSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [rejectionHistoryEntryId, setRejectionHistoryEntryId] = useState<string | null>(null);
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -229,7 +231,7 @@ export default function Timesheet() {
     // A row is "saveable" only when it has project + at least 1 hour entered
     const saveableRows = currentTimesheet.rows.filter(r =>
       r.projectId &&
-      ['draft', 'recalled'].includes(r.status) &&
+      ['draft', 'recalled', 'rejected'].includes(r.status) &&
       Object.values(r.hours).some(h => h > 0)
     );
     // Don't auto-save if no saveable rows exist
@@ -262,9 +264,16 @@ export default function Timesheet() {
     // Wait a tick for state to update with saved IDs
     await new Promise(r => setTimeout(r, 300));
     const updatedTs = useTimesheetStore.getState().currentTimesheet;
-    const draftIds = updatedTs.rows
-      .filter((r) => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status))
-      .map((r) => r.id);
+    const isDbId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const draftRows = updatedTs.rows
+      .filter((r) => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status));
+    // Ensure all entry IDs are valid DB UUIDs (saveDraft must have succeeded)
+    const invalidRows = draftRows.filter(r => !isDbId(r.id));
+    if (invalidRows.length > 0) {
+      toast.error('Failed to save entries before submitting. Please try again.');
+      return;
+    }
+    const draftIds = draftRows.map((r) => r.id);
     if (draftIds.length === 0) {
       toast.error('No draft entries to submit');
       return;
@@ -671,36 +680,26 @@ export default function Timesheet() {
                               <div className="flex flex-col items-center gap-1">
                                 <StatusBadge status={row.status || 'draft'} />
                                 {row.status === 'rejected' && row.reviewComments && (
-                                  <div className="max-w-[140px] px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30" title={row.reviewComments}>
-                                    <p className="text-[9px] text-red-600 dark:text-red-300 truncate">
-                                      Reason: {row.reviewComments}
+                                  <div className="max-w-[160px] px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
+                                    <p className="text-[9px] text-red-600 dark:text-red-300 line-clamp-2 break-words">
+                                      {row.reviewComments}
                                     </p>
                                   </div>
                                 )}
-                                {(row.resubmissionCount || 0) > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" title="This entry was resubmitted after rejection">
+                                {row.status === 'resubmitted' && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" title="Awaiting re-review">
                                     <RotateCcw className="w-2.5 h-2.5" />
-                                    Resubmitted
+                                    Re-review pending
                                   </span>
                                 )}
-                                {row.rejectionHistory && row.rejectionHistory.length > 0 && (
-                                  <details className="group relative">
-                                    <summary className="inline-flex items-center gap-0.5 cursor-pointer text-[9px] text-red-500 hover:text-red-700 dark:text-red-400">
-                                      <History className="w-2.5 h-2.5" />
-                                      {row.rejectionHistory.length} rejection{row.rejectionHistory.length > 1 ? 's' : ''}
-                                    </summary>
-                                    <div className="absolute z-50 right-0 mt-1 w-64 p-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-secondary)] shadow-xl space-y-1.5 text-left">
-                                      {row.rejectionHistory.map((rh, idx) => (
-                                        <div key={idx} className="p-2 rounded bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
-                                          <div className="flex justify-between items-center mb-0.5">
-                                            <span className="text-[10px] font-medium text-red-700 dark:text-red-400">{rh.reviewerName || 'Manager'}</span>
-                                            <span className="text-[9px] text-red-500">{rh.rejectedAt ? new Date(rh.rejectedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
-                                          </div>
-                                          <p className="text-[10px] text-red-600 dark:text-red-300">{rh.comments || 'No remarks'}</p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </details>
+                                {(row.status === 'rejected' || row.status === 'resubmitted' || (row.rejectionHistory && row.rejectionHistory.length > 0)) && (
+                                  <button
+                                    onClick={() => setRejectionHistoryEntryId(row.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 dark:bg-red-900/15 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-800/25 border border-red-200/60 dark:border-red-700/30 transition-colors cursor-pointer"
+                                  >
+                                    <History className="w-2.5 h-2.5" />
+                                    View history
+                                  </button>
                                 )}
                               </div>
                             </td>
@@ -818,6 +817,15 @@ export default function Timesheet() {
           </div>
         </>
       )}
+      {/* Rejection History Modal */}
+      <RejectionHistoryModal
+        entryId={rejectionHistoryEntryId}
+        onClose={() => setRejectionHistoryEntryId(null)}
+        entryLabel={(() => {
+          const row = rows.find(r => r.id === rejectionHistoryEntryId);
+          return row ? `${row.projectName || row.projectCode || 'Entry'} · ${formatWeekRange(displayMonday)}` : undefined;
+        })()}
+      />
     </motion.div>
   );
 }

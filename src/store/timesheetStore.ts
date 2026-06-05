@@ -223,15 +223,34 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         milestoneId: e.milestone_id || '',
         taskDescription: e.task_description || '',
         billable: e.billable ?? true,
-        hours: { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 },
+        hours: {
+          mon: Number(e.hours_mon) || 0,
+          tue: Number(e.hours_tue) || 0,
+          wed: Number(e.hours_wed) || 0,
+          thu: Number(e.hours_thu) || 0,
+          fri: Number(e.hours_fri) || 0,
+          sat: Number(e.hours_sat) || 0,
+          sun: Number(e.hours_sun) || 0,
+        },
         status: 'draft' as EntryStatus,
+        projectName: e.project?.name || '',
+        projectCode: e.project?.project_code || '',
+        projectColor: e.project?.color || '',
+        milestoneName: e.milestone?.name || '',
       }));
 
       if (copiedRows.length === 0) return false;
 
+      const totalHours = copiedRows.reduce(
+        (sum, r) => sum + Object.values(r.hours).reduce((a, b) => a + b, 0), 0
+      );
+
       set((state) => ({
-        currentTimesheet: { ...state.currentTimesheet, rows: copiedRows, totalHours: 0 },
+        currentTimesheet: { ...state.currentTimesheet, rows: copiedRows, totalHours },
       }));
+
+      // Auto-save the copied data as draft
+      await get().saveDraft();
       return true;
     } catch {
       return false;
@@ -247,12 +266,18 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
     set({ isSaving: true });
     try {
       const ts = get().currentTimesheet;
-      // Only save draft/recalled rows — rejected rows must NOT be auto-saved
+      // Save draft/recalled/rejected rows
       const editableRows = ts.rows.filter((r) =>
-        r.projectId && ['draft', 'recalled'].includes(r.status)
+        r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status)
       );
 
+      // UUID pattern to distinguish DB IDs from local temp IDs
+      const isDbId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
       const entries = editableRows.map((r) => ({
+        // Existing entries: send id so backend can UPDATE in place
+        // New entries: send tempId so backend can return the mapping
+        ...(isDbId(r.id) ? { id: r.id } : { tempId: r.id }),
         projectId: r.projectId,
         milestoneId: r.milestoneId || null,
         taskDescription: r.taskDescription,
@@ -271,22 +296,23 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         entries,
       });
 
-      // Silently sync IDs without replacing row data (prevents UI disruption)
+      // Sync IDs: only new entries need tempIdMap, existing entries keep their ID
       const apiData = res.data.data;
-      const apiEntries = apiData?.entries || [];
+      const tempIdMap: Record<string, string> = apiData?.tempIdMap || {};
       const currentTs = get().currentTimesheet;
+
       const updatedRows = currentTs.rows.map((row) => {
-        if (!row.projectId || !['draft', 'recalled'].includes(row.status)) return row;
-        // Match by projectId + hours to find the corresponding API entry
-        const match = apiEntries.find((ae: any) =>
-          (ae.project_id === row.projectId || ae.project?.id === row.projectId) &&
-          Number(ae.hours_mon) === row.hours.mon && Number(ae.hours_tue) === row.hours.tue
-        );
-        if (match) return { ...row, id: match.id };
+        if (!row.projectId || !['draft', 'recalled', 'rejected'].includes(row.status)) return row;
+        // Only new entries (non-UUID ids) need ID sync
+        if (!isDbId(row.id)) {
+          const realId = tempIdMap[row.id];
+          if (realId) return { ...row, id: realId };
+        }
         return row;
       });
+
       const savedHash = JSON.stringify(updatedRows
-        .filter(r => r.projectId && ['draft', 'recalled'].includes(r.status) && Object.values(r.hours).some(h => h > 0))
+        .filter(r => r.projectId && ['draft', 'recalled', 'rejected'].includes(r.status) && Object.values(r.hours).some(h => h > 0))
         .map(r => ({p:r.projectId,m:r.milestoneId,t:r.taskDescription,b:r.billable,h:r.hours})));
       set({
         currentTimesheet: {
@@ -298,7 +324,8 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
         isSaving: false,
         _lastSavedHash: savedHash,
       });
-    } catch {
+    } catch (err) {
+      console.error('saveDraft failed:', err);
       set({ isSaving: false });
     }
   },
@@ -315,7 +342,8 @@ export const useTimesheetStore = create<TimesheetStore>((set, get) => ({
       } else {
         set({ isSaving: false });
       }
-    } catch {
+    } catch (err) {
+      console.error('submitEntries failed:', err);
       set({ isSaving: false });
     }
   },

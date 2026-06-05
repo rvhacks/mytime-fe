@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { RejectionHistoryModal } from '@/components/shared/RejectionHistoryModal';
 import { EmptyState } from '@/components/shared/States';
 import { Textarea } from '@/components/ui/textarea';
 import { useAdminStore } from '@/store/adminStore';
@@ -30,6 +31,7 @@ export default function Approvals() {
   const [rejectComment, setRejectComment] = useState('');
   const [viewDialog, setViewDialog] = useState<string | null>(null);
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+  const [rejectionHistoryEntryId, setRejectionHistoryEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchApprovals();
@@ -85,6 +87,7 @@ export default function Approvals() {
   const viewEntry = viewDialog ? approvals.find((a) => a.id === viewDialog) : null;
 
   return (
+    <>
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <Toaster position="top-right" />
 
@@ -151,6 +154,7 @@ export default function Approvals() {
                     <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase p-3">Week</th>
                     <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase p-3">Project</th>
                     <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase p-3">Milestone</th>
+                    <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase p-3 w-16">Billable</th>
                     {DAY_LABELS.map((d) => (
                       <th key={d} className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase p-2 w-12">{d}</th>
                     ))}
@@ -178,24 +182,28 @@ export default function Approvals() {
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.projectColor }} />
                             <span className="text-sm font-medium text-[var(--text-primary)]">{entry.projectName || '—'}</span>
                             {(entry.resubmissionCount || 0) > 0 && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" title={`Resubmitted ${entry.resubmissionCount} time(s)`}>
-                                <RotateCcw className="w-3 h-3" />
-                                Resubmitted
-                              </span>
-                            )}
-                            {entry.rejectionHistory && entry.rejectionHistory.length > 0 && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); setViewDialog(entry.id); }}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800/30 transition-colors"
-                                title="View rejection history"
+                                onClick={(e) => { e.stopPropagation(); setRejectionHistoryEntryId(entry.id); }}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/30 transition-colors cursor-pointer" title={`Resubmitted ${entry.resubmissionCount} time(s) — click to view history`}
                               >
-                                <History className="w-3 h-3" />
-                                {entry.rejectionHistory.length} {entry.rejectionHistory.length === 1 ? 'rejection' : 'rejections'}
+                                <RotateCcw className="w-3 h-3" />
+                                Resubmitted ×{entry.resubmissionCount}
                               </button>
                             )}
                           </div>
                         </td>
                         <td className="p-3 text-sm text-[var(--text-secondary)]">{entry.milestoneName || '—'}</td>
+                        <td className="p-3 text-center">
+                          {entry.billable ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/20" title="Billable">
+                              <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800" title="Non-Billable">
+                              <span className="text-xs text-gray-400">—</span>
+                            </span>
+                          )}
+                        </td>
                         {DAYS.map((day) => (
                           <td key={day} className="p-2 text-center text-sm text-[var(--text-primary)]">
                             {entry.hours[day] || '—'}
@@ -298,45 +306,31 @@ export default function Approvals() {
                   ))}
                 </div>
               </div>
-              {/* Current Rejection Reason */}
-              {viewEntry.status === 'rejected' && viewEntry.reviewComments && (
-                <div className="p-2.5 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
-                  <div className="flex items-center gap-2 mb-1">
-                    <History className="w-3.5 h-3.5 text-red-500" />
-                    <span className="text-xs font-medium text-red-700 dark:text-red-400">Current Rejection</span>
-                    {viewEntry.reviewerName && <span className="text-[10px] text-red-500">by {viewEntry.reviewerName}</span>}
-                  </div>
-                  <p className="text-xs text-red-600 dark:text-red-300">{viewEntry.reviewComments}</p>
-                </div>
-              )}
-              {/* Past Rejection History */}
-              {viewEntry.rejectionHistory && viewEntry.rejectionHistory.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <History className="w-4 h-4 text-amber-500" />
-                    <p className="text-xs text-amber-600 dark:text-amber-400 uppercase font-medium">
-                      Past Rejection History ({viewEntry.rejectionHistory.length})
-                    </p>
-                  </div>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {viewEntry.rejectionHistory.map((rh, idx) => (
-                      <div key={idx} className="p-2.5 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-red-700 dark:text-red-400">{rh.reviewerName || 'Manager'}</span>
-                          <span className="text-[10px] text-red-500 dark:text-red-400">
-                            {rh.rejectedAt ? new Date(rh.rejectedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-red-600 dark:text-red-300">{rh.comments || 'No remarks provided'}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {/* Rejection History — View Full History button */}
+              {(viewEntry.resubmissionCount || 0) > 0 && (
+                <button
+                  onClick={() => { setRejectionHistoryEntryId(viewEntry.id); }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/15 dark:to-orange-900/10 border border-red-200 dark:border-red-800/30 text-sm font-semibold text-red-600 dark:text-red-400 hover:from-red-100 hover:to-orange-100 dark:hover:from-red-900/25 dark:hover:to-orange-900/20 transition-all cursor-pointer"
+                >
+                  <History className="w-4 h-4" />
+                  View Full Rejection History ({viewEntry.resubmissionCount} prior rejection{(viewEntry.resubmissionCount || 0) > 1 ? 's' : ''})
+                </button>
               )}
             </div>
           )}
         </DialogContent>
       </Dialog>
     </motion.div>
+
+    {/* Rejection History Modal */}
+    <RejectionHistoryModal
+      entryId={rejectionHistoryEntryId}
+      onClose={() => setRejectionHistoryEntryId(null)}
+      entryLabel={(() => {
+        const entry = approvals.find(a => a.id === rejectionHistoryEntryId);
+        return entry ? `${entry.projectName} · ${entry.userName}` : undefined;
+      })()}
+    />
+    </>
   );
 }
