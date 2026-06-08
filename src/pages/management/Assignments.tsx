@@ -76,15 +76,19 @@ export default function Assignments() {
     loadPage(page, limit);
   };
 
-  const getEmpName = (id: string) => {
-    const e = employees.find((x) => x.id === id);
-    return e ? `${e.firstName} ${e.lastName}` : id;
+  const getEmpName = (a: any) => {
+    if (a.employeeName) return a.employeeName;
+    const e = employees.find((x) => x.id === (a.employeeId || a));
+    return e ? `${e.firstName} ${e.lastName}` : (a.employeeId || a);
   };
   const getEmpAvatar = (id: string) => {
     const e = employees.find((x) => x.id === id);
     return e?.avatar_path;
   };
-  const getProjName = (id: string) => projects.find((x) => x.id === id)?.name || id;
+  const getProjName = (a: any) => {
+    if (a.projectName) return a.projectName;
+    return projects.find((x) => x.id === (a.projectId || a))?.name || (a.projectId || a);
+  };
 
   const filteredAssignments = assignments.filter((a) => {
     if (filterEmpId && a.employeeId !== filterEmpId) return false;
@@ -190,11 +194,11 @@ export default function Assignments() {
                   <tr key={a.id} className="border-b border-[var(--border-secondary)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <Avatar src={buildAvatarUrl(getEmpAvatar(a.employeeId))} name={getEmpName(a.employeeId)} size="sm" />
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{getEmpName(a.employeeId)}</span>
+                        <Avatar src={buildAvatarUrl(getEmpAvatar(a.employeeId))} name={getEmpName(a)} size="sm" />
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{getEmpName(a)}</span>
                       </div>
                     </td>
-                    <td className="p-4 text-sm text-[var(--text-secondary)]">{getProjName(a.projectId)}</td>
+                    <td className="p-4 text-sm text-[var(--text-secondary)]">{getProjName(a)}</td>
                     <td className="p-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400">
                         {a.role}

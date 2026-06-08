@@ -175,7 +175,13 @@ export default function Approvals() {
                           />
                         </td>
                         <td className="p-3 text-sm text-[var(--text-secondary)] whitespace-nowrap">
-                          {entry.weekStartDate ? new Date(entry.weekStartDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                          {entry.weekStartDate ? (() => {
+                            const start = new Date(entry.weekStartDate + 'T00:00:00');
+                            const end = new Date(start);
+                            end.setDate(end.getDate() + 6);
+                            const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            return `${fmt(start)} – ${fmt(end)}`;
+                          })() : '—'}
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">

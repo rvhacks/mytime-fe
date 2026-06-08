@@ -77,6 +77,8 @@ export interface ProjectAssignment {
   projectId: string;
   role: string;
   assignedAt: string;
+  projectName?: string;
+  employeeName?: string;
 }
 
 /**

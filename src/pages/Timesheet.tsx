@@ -11,10 +11,8 @@ import {
   ChevronRight,
   Copy,
   Loader2,
-  RotateCcw,
   History,
   Eye,
-
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -419,8 +417,20 @@ export default function Timesheet() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Week Navigator */}
-          <div className="flex items-center gap-1 mr-2 bg-[var(--bg-tertiary)] rounded-lg p-0.5">
+          {/* Action Buttons — to the left of week navigator */}
+          {!isViewOnly && !isGlobalLocked && rows.some(r => ['draft','recalled','rejected'].includes(r.status) && r.projectId) && (
+            <Button size="sm" onClick={handleSubmitAll} isLoading={isSaving}>
+              <Send className="w-4 h-4" />
+              Submit All
+            </Button>
+          )}
+          {!isViewOnly && !isGlobalLocked && rows.some(r => r.status === 'submitted' || r.status === 'resubmitted') && (
+            <Button size="sm" variant="outline" onClick={handleRecallAll} isLoading={isSaving}>
+              Recall Submitted
+            </Button>
+          )}
+          {/* Week Navigator — always last */}
+          <div className="flex items-center gap-1 bg-[var(--bg-tertiary)] rounded-lg p-0.5">
             <button
               onClick={goToPrevWeek}
               className="p-1.5 rounded-md hover:bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
@@ -447,19 +457,6 @@ export default function Timesheet() {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Submit / Recall — hidden in view-only mode */}
-          {!isViewOnly && !isGlobalLocked && rows.some(r => ['draft','recalled','rejected'].includes(r.status) && r.projectId) && (
-            <Button size="sm" onClick={handleSubmitAll} isLoading={isSaving}>
-              <Send className="w-4 h-4" />
-              Submit All
-            </Button>
-          )}
-          {!isViewOnly && !isGlobalLocked && rows.some(r => r.status === 'submitted' || r.status === 'resubmitted') && (
-            <Button size="sm" variant="outline" onClick={handleRecallAll} isLoading={isSaving}>
-              Recall Submitted
-            </Button>
-          )}
         </div>
       </div>
 
@@ -480,7 +477,10 @@ export default function Timesheet() {
             variant="outline"
             size="sm"
             onClick={() => {
-              if (returnTo === 'admin-reports') {
+              if (returnTo === 'admin-approvals') {
+                const expandManager = urlParams.get('expandManager');
+                navigate(`/management/approvals${expandManager ? `?expand=${expandManager}` : ''}`);
+              } else if (returnTo === 'admin-reports') {
                 navigate(`/reports${returnTab ? `?tab=${returnTab}` : ''}${returnEmployee ? `&employee=${returnEmployee}` : ''}`);
               } else if (returnTo === 'reports') {
                 navigate(`/employee-reports${returnEmployee ? `?employee=${returnEmployee}` : ''}`);
@@ -490,7 +490,7 @@ export default function Timesheet() {
             }}
             className="text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
           >
-            ← Back to Reports
+            ← Back
           </Button>
         </motion.div>
       )}
@@ -677,28 +677,15 @@ export default function Timesheet() {
                             </td>
                             {/* Per-Row Status Badge */}
                             <td className="p-3 text-center">
-                              <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center justify-center gap-1.5">
                                 <StatusBadge status={row.status || 'draft'} />
-                                {row.status === 'rejected' && row.reviewComments && (
-                                  <div className="max-w-[160px] px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30">
-                                    <p className="text-[9px] text-red-600 dark:text-red-300 line-clamp-2 break-words">
-                                      {row.reviewComments}
-                                    </p>
-                                  </div>
-                                )}
-                                {row.status === 'resubmitted' && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400" title="Awaiting re-review">
-                                    <RotateCcw className="w-2.5 h-2.5" />
-                                    Re-review pending
-                                  </span>
-                                )}
                                 {(row.status === 'rejected' || row.status === 'resubmitted' || (row.rejectionHistory && row.rejectionHistory.length > 0)) && (
                                   <button
                                     onClick={() => setRejectionHistoryEntryId(row.id)}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 dark:bg-red-900/15 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-800/25 border border-red-200/60 dark:border-red-700/30 transition-colors cursor-pointer"
+                                    className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/30 transition-colors cursor-pointer"
+                                    title="View rejection history"
                                   >
-                                    <History className="w-2.5 h-2.5" />
-                                    View history
+                                    <History className="w-3 h-3" />
                                   </button>
                                 )}
                               </div>

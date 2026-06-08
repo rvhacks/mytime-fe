@@ -75,12 +75,16 @@ function mapEmployee(u: any): Employee {
 }
 
 function mapAssignment(a: any): ProjectAssignment {
+  const user = a.user || {};
+  const project = a.project || {};
   return {
     id: a.id,
     employeeId: a.user_id || a.employeeId,
     projectId: a.project_id || a.projectId,
     role: a.role,
     assignedAt: (a.created_at || a.createdAt || a.assignedAt || '').toString().slice(0, 10),
+    projectName: project.name || '',
+    employeeName: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '',
   };
 }
 

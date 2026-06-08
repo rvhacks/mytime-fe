@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Clock, Send, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +21,18 @@ export default function AdminApprovals() {
   const [page, setPage] = useState(1);
   const limit = 10;
 
-  useEffect(() => { fetchManagerApprovals(); }, []);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    fetchManagerApprovals().then(() => {
+      // Auto-expand manager if returning from employee timesheet view
+      const expandId = searchParams.get('expand');
+      if (expandId) {
+        handleDrillDown(expandId);
+      }
+    });
+  }, []);
 
   const toggleManager = (id: string) => {
     setSelectedManagers((prev) =>
@@ -198,30 +210,56 @@ export default function AdminApprovals() {
                         <td colSpan={6} className="bg-[var(--bg-tertiary)] p-4">
                           {drillLoading ? (
                             <div className="text-center py-4 text-sm text-[var(--text-tertiary)]">Loading...</div>
-                          ) : drillDownData ? (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-[var(--text-primary)]">Direct Reports</h4>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {(drillDownData.directReports || []).map((dr: any) => (
-                                  <div key={dr.id} className="flex items-center gap-2 p-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border-secondary)]">
-                                    <Avatar src={buildAvatarUrl(dr.avatar_path || dr.avatarUrl)} name={`${dr.first_name || dr.firstName} ${dr.last_name || dr.lastName}`} size="sm" />
-                                    <div>
-                                      <p className="text-sm font-medium text-[var(--text-primary)]">{dr.first_name || dr.firstName} {dr.last_name || dr.lastName}</p>
-                                      <p className="text-xs text-[var(--text-tertiary)]">{dr.employee_id || dr.employeeId || '—'}</p>
-                                    </div>
-                                  </div>
-                                ))}
+                          ) : drillDownData ? (() => {
+                            // Compute pending counts per employee from entries
+                            const pendingByEmployee: Record<string, number> = {};
+                            (drillDownData.entries || []).forEach((entry: any) => {
+                              const empId = entry.timesheet?.user_id;
+                              if (empId && ['submitted', 'resubmitted'].includes(entry.status)) {
+                                pendingByEmployee[empId] = (pendingByEmployee[empId] || 0) + 1;
+                              }
+                            });
+                            const reports = drillDownData.directReports || [];
+                            return (
+                              <div className="space-y-3">
+                                <h4 className="text-sm font-semibold text-[var(--text-primary)]">
+                                  Direct Reports ({reports.length})
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                  {reports.map((dr: any) => {
+                                    const name = `${dr.first_name || dr.firstName} ${dr.last_name || dr.lastName}`;
+                                    const pending = pendingByEmployee[dr.id] || 0;
+                                    return (
+                                      <div
+                                        key={dr.id}
+                                        onClick={() => { if (pending > 0) navigate(`/reports?tab=timesheets&employee=${encodeURIComponent(dr.employee_id || dr.employeeId)}&status=pending_approval`); }}
+                                        className={`flex items-center gap-3 p-3 rounded-lg bg-[var(--card-bg)] border border-[var(--border-secondary)] transition-all ${pending > 0 ? 'cursor-pointer hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-md' : ''}`}
+                                      >
+                                        <Avatar src={buildAvatarUrl(dr.avatar_path || dr.avatarUrl)} name={name} size="sm" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-[var(--text-primary)] truncate">{name}</p>
+                                          <p className="text-xs text-[var(--text-tertiary)]">{dr.employee_id || dr.employeeId || '—'}</p>
+                                        </div>
+                                        {pending > 0 ? (
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                                              <Clock className="w-3 h-3" />
+                                              {pending} pending
+                                            </span>
+                                            <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)]" />
+                                          </div>
+                                        ) : (
+                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                            All clear
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                              {(drillDownData.entries || []).length > 0 && (
-                                <>
-                                  <h4 className="text-sm font-semibold text-[var(--text-primary)] mt-4">Recent Timesheet Entries</h4>
-                                  <div className="text-xs text-[var(--text-tertiary)]">
-                                    {drillDownData.entries.length} entries found
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          ) : (
+                            );
+                          })() : (
                             <div className="text-center py-4 text-sm text-[var(--text-tertiary)]">No data available</div>
                           )}
                         </td>

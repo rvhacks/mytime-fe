@@ -127,8 +127,9 @@ export default function Reports() {
   const [pastLoading, setPastLoading] = useState(false);
   const [pastStartDate, setPastStartDate] = useState('');
   const [pastEndDate, setPastEndDate] = useState('');
-  const [pastEmployeeFilter, setPastEmployeeFilter] = useState('');
+  const [pastEmployeeFilter, setPastEmployeeFilter] = useState(initParams.get('employee') || '');
   const [pastProjectFilter, setPastProjectFilter] = useState('');
+  const [pastStatusFilter, setPastStatusFilter] = useState(initParams.get('status') || '');
 
   // Close export menu on click outside
   useEffect(() => {
@@ -177,6 +178,7 @@ export default function Reports() {
       if (pastEndDate) params.endDate = pastEndDate;
       if (pastEmployeeFilter) params.employeeId = pastEmployeeFilter;
       if (pastProjectFilter) params.projectId = pastProjectFilter;
+      if (pastStatusFilter) params.status = pastStatusFilter;
 
       const res = await api.get('/admin/reports/past-timesheets', { params });
       const data = res.data.data;
@@ -187,7 +189,7 @@ export default function Reports() {
     } finally {
       setPastLoading(false);
     }
-  }, [pastStartDate, pastEndDate, pastEmployeeFilter, pastProjectFilter]);
+  }, [pastStartDate, pastEndDate, pastEmployeeFilter, pastProjectFilter, pastStatusFilter]);
 
   // ---- Initial + filter-driven load ----
   useEffect(() => {
@@ -196,7 +198,7 @@ export default function Reports() {
 
   useEffect(() => {
     if (activeTab === 'timesheets') fetchPastTimesheets(1, pastPagination.limit);
-  }, [pastStartDate, pastEndDate, pastEmployeeFilter, pastProjectFilter, activeTab]);
+  }, [pastStartDate, pastEndDate, pastEmployeeFilter, pastProjectFilter, pastStatusFilter, activeTab]);
 
   const handlePageChange = (p: number) => fetchReport(p, pagination.limit);
   const handleLimitChange = (l: number) => fetchReport(1, l);
@@ -321,9 +323,10 @@ export default function Reports() {
     setPastEndDate('');
     setPastEmployeeFilter('');
     setPastProjectFilter('');
+    setPastStatusFilter('');
   };
 
-  const hasPastFilter = !!pastStartDate || !!pastEndDate || !!pastEmployeeFilter || !!pastProjectFilter;
+  const hasPastFilter = !!pastStartDate || !!pastEndDate || !!pastEmployeeFilter || !!pastProjectFilter || !!pastStatusFilter;
 
   // ---- Summary cards data ----
   const summaryCards = [
@@ -709,6 +712,22 @@ export default function Reports() {
                     getOptionValue={(item) => item.id}
                     getOptionLabel={(item) => item.label}
                   />
+                </div>
+
+                <div className="w-52">
+                  <label className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider mb-0.5 block">Status</label>
+                  <select
+                    value={pastStatusFilter}
+                    onChange={(e) => setPastStatusFilter(e.target.value)}
+                    className="h-9 w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending_approval">Pending Approval</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="resubmitted">Resubmitted</option>
+                    <option value="submitted">Submitted</option>
+                  </select>
                 </div>
 
                 {hasPastFilter && (

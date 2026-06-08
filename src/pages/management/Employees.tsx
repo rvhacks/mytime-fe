@@ -395,9 +395,9 @@ export default function Employees() {
             <DialogTitle>Employee Created</DialogTitle>
             <DialogDescription>Share the generated password with the employee securely.</DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800">
-            <code className="text-lg font-mono font-bold text-accent-700 dark:text-accent-300 flex-1 tracking-wider">{generatedPw}</code>
-            <Button variant="outline" size="sm" onClick={copyPw}>
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-surface-100 dark:bg-surface-800 border border-surface-300 dark:border-surface-600">
+            <code className="text-lg font-mono font-bold text-[var(--text-primary)] flex-1 tracking-wider select-all">{generatedPw}</code>
+            <Button variant="outline" size="sm" onClick={copyPw} className="shrink-0">
               {copied ? <Check className="w-4 h-4 text-accent-500" /> : <Copy className="w-4 h-4" />}
               {copied ? 'Copied!' : 'Copy'}
             </Button>

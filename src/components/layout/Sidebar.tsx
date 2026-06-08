@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
+import { useAdminStore } from '@/store/adminStore';
 import { Avatar } from '@/components/ui/avatar';
 import { buildAvatarUrl } from '@/lib/avatarUtils';
 
@@ -45,7 +46,7 @@ const navItems: NavItem[] = [
   { path: '/employee-reports', label: 'Reports', icon: BarChart3, roles: ['employee'] },
   { path: '/projects', label: 'My Projects', icon: FolderKanban, roles: ['employee'] },
   { path: '/my-team', label: 'My Team', icon: UsersRound, roles: ['employee'] },
-  { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['employee', 'admin'] },
+  { path: '/approvals', label: 'Approvals', icon: CheckSquare, roles: ['employee'] },
   { path: '/profile', label: 'Profile', icon: User, roles: ['employee', 'admin'] },
 ];
 
@@ -60,9 +61,17 @@ const managementItems: NavItem[] = [
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, logout } = useAuthStore();
+  const { pendingApprovalCount, fetchPendingApprovalCount } = useAdminStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [mgmtOpen, setMgmtOpen] = useState(() => location.pathname.startsWith('/management'));
+
+  // Fetch pending approval count for managers on every page change
+  useEffect(() => {
+    if (user && user.isManager && user.role !== 'admin') {
+      fetchPendingApprovalCount();
+    }
+  }, [user?.id, location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -72,9 +81,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   // Dynamic visibility: 'manager' is no longer a static role
   const visibleItems = navItems.filter((item) => {
     if (!user) return false;
-    // Special case: Approvals visible to dynamic managers and admin
+    // Approvals visible only to managers (not admin — admin has Approval Tracker in Management)
     if (item.path === '/approvals') {
-      return user.role === 'admin' || user.isManager;
+      return user.role !== 'admin' && user.isManager;
     }
     return item.roles.includes(user.role);
   });
@@ -111,12 +120,21 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
-                className="overflow-hidden whitespace-nowrap"
+                className="overflow-hidden whitespace-nowrap flex-1"
               >
                 {item.label}
               </motion.span>
             )}
           </AnimatePresence>
+          {/* Pending approval count badge */}
+          {item.path === '/approvals' && pendingApprovalCount > 0 && (
+            <span className={cn(
+              'flex items-center justify-center rounded-full bg-red-500 text-white font-bold shrink-0',
+              collapsed ? 'absolute top-0.5 right-0.5 w-4 h-4 text-[8px]' : 'min-w-[20px] h-5 px-1.5 text-[10px]'
+            )}>
+              {pendingApprovalCount > 99 ? '99+' : pendingApprovalCount}
+            </span>
+          )}
         </>
       )}
     </NavLink>

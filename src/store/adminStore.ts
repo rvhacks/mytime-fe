@@ -33,6 +33,10 @@ interface AdminStore {
   sendReminders: (managerIds: string[]) => Promise<void>;
 
   fetchDashboardStats: () => Promise<void>;
+
+  // Pending Approval Count (for sidebar badge)
+  pendingApprovalCount: number;
+  fetchPendingApprovalCount: () => Promise<void>;
 }
 
 const defaultPagination: PaginationInfo = { page: 1, limit: 10, total: 0, totalPages: 1 };
@@ -114,6 +118,7 @@ export const useAdminStore = create<AdminStore>((set) => ({
   projectPagination: defaultPagination,
   milestonePagination: defaultPagination,
   managerApprovals: [],
+  pendingApprovalCount: 0,
 
   fetchDashboardStats: async () => {
     try {
@@ -208,7 +213,8 @@ export const useAdminStore = create<AdminStore>((set) => ({
     try {
       const res = await timesheetAPI.getPendingApprovals();
       const rows = res.data.data?.rows || res.data.data || [];
-      set({ approvals: (Array.isArray(rows) ? rows : []).map(mapApprovalEntry), isLoading: false });
+      const mapped = (Array.isArray(rows) ? rows : []).map(mapApprovalEntry);
+      set({ approvals: mapped, isLoading: false, pendingApprovalCount: mapped.length });
     } catch { set({ isLoading: false }); }
   },
 
@@ -216,7 +222,11 @@ export const useAdminStore = create<AdminStore>((set) => ({
     set({ isLoading: true });
     try {
       await timesheetAPI.approvalAction(entryIds, 'approve', comments);
-      set((s) => ({ approvals: s.approvals.filter((a) => !entryIds.includes(a.id)), isLoading: false }));
+      set((s) => ({
+        approvals: s.approvals.filter((a) => !entryIds.includes(a.id)),
+        pendingApprovalCount: Math.max(0, s.pendingApprovalCount - entryIds.length),
+        isLoading: false,
+      }));
     } catch { set({ isLoading: false }); }
   },
 
@@ -224,7 +234,11 @@ export const useAdminStore = create<AdminStore>((set) => ({
     set({ isLoading: true });
     try {
       await timesheetAPI.approvalAction(entryIds, 'reject', comments);
-      set((s) => ({ approvals: s.approvals.filter((a) => !entryIds.includes(a.id)), isLoading: false }));
+      set((s) => ({
+        approvals: s.approvals.filter((a) => !entryIds.includes(a.id)),
+        pendingApprovalCount: Math.max(0, s.pendingApprovalCount - entryIds.length),
+        isLoading: false,
+      }));
     } catch { set({ isLoading: false }); }
   },
 
@@ -243,5 +257,14 @@ export const useAdminStore = create<AdminStore>((set) => ({
       await adminApprovalAPI.sendReminders(managerIds);
       set({ isLoading: false });
     } catch { set({ isLoading: false }); }
+  },
+
+  // Lightweight fetch for sidebar badge
+  fetchPendingApprovalCount: async () => {
+    try {
+      const res = await timesheetAPI.getPendingApprovals();
+      const rows = res.data.data?.rows || res.data.data || [];
+      set({ pendingApprovalCount: Array.isArray(rows) ? rows.length : 0 });
+    } catch { /* silent */ }
   },
 }));

@@ -39,10 +39,13 @@ export default function Milestones() {
   const [formDesc, setFormDesc] = useState('');
   const [formRole, setFormRole] = useState<string>('');
 
-  const fetchMilestones = useCallback(async (p: number, l: number, s?: string) => {
+  const fetchMilestones = useCallback(async (p: number, l: number, s?: string, role?: string) => {
     setIsLoading(true);
     try {
-      const res = await milestoneAPI.getAll({ page: p, limit: l, search: s || search || undefined });
+      const params: any = { page: p, limit: l, search: s || search || undefined };
+      const effectiveRole = role !== undefined ? role : roleFilter;
+      if (effectiveRole && effectiveRole !== 'all') params.role = effectiveRole;
+      const res = await milestoneAPI.getAll(params);
       const rows = res.data.data?.rows || res.data.data || [];
       setMilestones(Array.isArray(rows) ? rows.map((m: any) => ({
         id: m.id, name: m.name, description: m.description || '', role: m.role,
@@ -51,7 +54,7 @@ export default function Milestones() {
       setPagination(pg ? { page: pg.page, limit: pg.limit, total: pg.total, totalPages: pg.totalPages } : defaultPagination);
     } catch { /* silent */ }
     setIsLoading(false);
-  }, [search]);
+  }, [search, roleFilter]);
 
   useEffect(() => {
     fetchMilestones(1, limit);
@@ -60,11 +63,11 @@ export default function Milestones() {
   useEffect(() => { fetchMilestones(page, limit); }, [page, limit]);
 
   useEffect(() => {
-    const t = setTimeout(() => { setPage(1); fetchMilestones(1, limit, search); }, 300);
+    const t = setTimeout(() => { setPage(1); fetchMilestones(1, limit, search, roleFilter); }, 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, roleFilter]);
 
-  const filtered = roleFilter === 'all' ? milestones : milestones.filter((m) => m.role === roleFilter);
+  const filtered = milestones;
 
   const resetForm = () => { setFormName(''); setFormDesc(''); setFormRole(''); };
 
