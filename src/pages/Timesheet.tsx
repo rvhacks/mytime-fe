@@ -540,34 +540,34 @@ export default function Timesheet() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[var(--border-secondary)]">
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-44">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-48">
                         Project
                       </th>
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-36">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-40">
                         Milestone
                       </th>
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-72">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-64">
                         Task
                       </th>
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-16">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-1 py-3 w-14">
                         Billable
                       </th>
                       {days.map((day) => {
                         const isWe = day.key === 'sat' || day.key === 'sun';
                         return (
-                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider px-2 py-3 w-14 ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
+                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider px-1 py-3 w-[60px] ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
                             <div>{day.label}</div>
                             <div className="text-[10px] text-[var(--text-tertiary)] font-normal">{day.date}</div>
                           </th>
                         );
                       })}
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-14">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-1 py-3 w-16">
                         Total
                       </th>
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-20">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-1 py-3 w-20">
                         Status
                       </th>
-                      {!isGlobalLocked && <th className="w-10 p-3" />}
+                      {!isGlobalLocked && <th className="w-10 px-1 py-3" />}
                     </tr>
                   </thead>
                   <tbody>
