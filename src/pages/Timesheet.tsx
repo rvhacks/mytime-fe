@@ -546,16 +546,16 @@ export default function Timesheet() {
                       <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-40">
                         Milestone
                       </th>
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-64">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-3 py-3 w-60">
                         Task
                       </th>
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-1 py-3 w-14">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-1 py-3 w-16">
                         Billable
                       </th>
                       {days.map((day) => {
                         const isWe = day.key === 'sat' || day.key === 'sun';
                         return (
-                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider px-1 py-3 w-[60px] ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
+                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider px-1 py-3 w-16 ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
                             <div>{day.label}</div>
                             <div className="text-[10px] text-[var(--text-tertiary)] font-normal">{day.date}</div>
                           </th>
@@ -624,7 +624,7 @@ export default function Timesheet() {
                               )}
                             </td>
                             {/* Task */}
-                            <td className="p-3">
+                            <td className="px-3 py-3">
                               <textarea value={row.taskDescription}
                                 onChange={(e) => updateRowField(row.id, 'taskDescription', e.target.value)}
                                 disabled={locked} placeholder="What did you work on?"
@@ -649,7 +649,7 @@ export default function Timesheet() {
                             {days.map((day) => {
                               const isWeekend = day.key === 'sat' || day.key === 'sun';
                               return (
-                                <td key={day.key} className={`px-1 py-2 ${isWeekend ? 'bg-[var(--bg-tertiary)]/50' : ''}`}>
+                                <td key={day.key} className={`p-2 ${isWeekend ? 'bg-[var(--bg-tertiary)]/50' : ''}`}>
                                   <input type="number" min="0" max="24" step="0.5"
                                     value={row.hours[day.key] || ''}
                                     onChange={(e) => {
@@ -667,7 +667,7 @@ export default function Timesheet() {
                                       updateRowHours(row.id, day.key, val);
                                     }}
                                     disabled={locked}
-                                    className={`w-12 h-9 rounded-lg border border-[var(--input-border)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                                    className={`w-14 h-9 rounded-lg border border-[var(--input-border)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                                       isWeekend ? 'bg-[var(--bg-tertiary)] opacity-60' : 'bg-[var(--input-bg)]'}`}
                                   />
                                 </td>
@@ -678,7 +678,7 @@ export default function Timesheet() {
                               <span className="text-sm font-semibold text-[var(--text-primary)]">{formatHours(getRowTotal(row.hours))}</span>
                             </td>
                             {/* Per-Row Status Badge */}
-                            <td className="p-3 text-center">
+                            <td className="px-1 py-3 text-center">
                               <div className="flex items-center justify-center gap-1.5">
                                 <StatusBadge status={row.status || 'draft'} />
                                 {(row.status === 'rejected' || row.status === 'resubmitted' || (row.rejectionHistory && row.rejectionHistory.length > 0)) && (
@@ -694,7 +694,7 @@ export default function Timesheet() {
                             </td>
                             {/* Delete — only for editable rows */}
                             {!isGlobalLocked && (
-                              <td className="p-3">
+                              <td className="px-1 py-3">
                                 {!isRowLocked(row.status) ? (
                                   <button onClick={() => removeRow(row.id)}
                                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-danger-500 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-all">
@@ -711,7 +711,7 @@ export default function Timesheet() {
 
                     {/* Totals Row */}
                     <tr className="bg-[var(--bg-tertiary)]">
-                      <td colSpan={4} className="p-3">
+                      <td colSpan={4} className="px-2 py-3">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">Daily Total</span>
                       </td>
                       {days.map((day) => (
@@ -721,7 +721,7 @@ export default function Timesheet() {
                           </span>
                         </td>
                       ))}
-                      <td className="px-1 py-3 text-center">
+                      <td className="px-2 py-3 text-center">
                         <span className="text-sm font-bold text-brand-600 dark:text-brand-400">
                           {formatHours(totalHours)}
                         </span>
