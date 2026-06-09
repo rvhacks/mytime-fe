@@ -540,34 +540,34 @@ export default function Timesheet() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[var(--border-secondary)]">
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-48">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-44">
                         Project
                       </th>
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-40">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-36">
                         Milestone
                       </th>
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-64">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-72">
                         Task
                       </th>
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-20">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-16">
                         Billable
                       </th>
                       {days.map((day) => {
                         const isWe = day.key === 'sat' || day.key === 'sun';
                         return (
-                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider p-4 w-16 ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
+                          <th key={day.key} className={`text-center text-xs font-medium uppercase tracking-wider px-2 py-3 w-14 ${isWe ? 'text-[var(--text-tertiary)] opacity-60 bg-[var(--bg-tertiary)]/30' : 'text-[var(--text-tertiary)]'}`}>
                             <div>{day.label}</div>
                             <div className="text-[10px] text-[var(--text-tertiary)] font-normal">{day.date}</div>
                           </th>
                         );
                       })}
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-16">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider px-2 py-3 w-14">
                         Total
                       </th>
-                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-20">
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-3 w-20">
                         Status
                       </th>
-                      {!isGlobalLocked && <th className="w-12 p-4" />}
+                      {!isGlobalLocked && <th className="w-10 p-3" />}
                     </tr>
                   </thead>
                   <tbody>
@@ -582,7 +582,7 @@ export default function Timesheet() {
                             className={`border-b border-[var(--border-secondary)] last:border-0 group ${locked ? 'opacity-80' : ''}`}
                           >
                             {/* Project */}
-                            <td className="p-3">
+                            <td className="px-2 py-3">
                               {isViewOnly ? (
                                 <span className="text-sm text-[var(--text-primary)] font-medium">{row.projectName || row.projectCode || '—'}</span>
                               ) : (
@@ -606,7 +606,7 @@ export default function Timesheet() {
                               )}
                             </td>
                             {/* Milestone */}
-                            <td className="p-3">
+                            <td className="px-2 py-3">
                               {isViewOnly ? (
                                 <span className="text-sm text-[var(--text-secondary)]">{row.milestoneName || '—'}</span>
                               ) : (
@@ -633,7 +633,7 @@ export default function Timesheet() {
                               />
                             </td>
                             {/* Billable */}
-                            <td className="p-3 text-center">
+                            <td className="px-1 py-3 text-center">
                               <label className="inline-flex items-center justify-center cursor-pointer">
                                 <input type="checkbox" checked={row.billable}
                                   onChange={(e) => updateRowField(row.id, 'billable', e.target.checked as any)}
@@ -649,7 +649,7 @@ export default function Timesheet() {
                             {days.map((day) => {
                               const isWeekend = day.key === 'sat' || day.key === 'sun';
                               return (
-                                <td key={day.key} className={`p-2 ${isWeekend ? 'bg-[var(--bg-tertiary)]/50' : ''}`}>
+                                <td key={day.key} className={`px-1 py-2 ${isWeekend ? 'bg-[var(--bg-tertiary)]/50' : ''}`}>
                                   <input type="number" min="0" max="24" step="0.5"
                                     value={row.hours[day.key] || ''}
                                     onChange={(e) => {
@@ -667,14 +667,14 @@ export default function Timesheet() {
                                       updateRowHours(row.id, day.key, val);
                                     }}
                                     disabled={locked}
-                                    className={`w-14 h-9 rounded-lg border border-[var(--input-border)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                                    className={`w-12 h-9 rounded-lg border border-[var(--input-border)] text-sm text-center text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                                       isWeekend ? 'bg-[var(--bg-tertiary)] opacity-60' : 'bg-[var(--input-bg)]'}`}
                                   />
                                 </td>
                               );
                             })}
                             {/* Row Total */}
-                            <td className="p-3 text-center">
+                            <td className="px-1 py-3 text-center">
                               <span className="text-sm font-semibold text-[var(--text-primary)]">{formatHours(getRowTotal(row.hours))}</span>
                             </td>
                             {/* Per-Row Status Badge */}
@@ -711,17 +711,17 @@ export default function Timesheet() {
 
                     {/* Totals Row */}
                     <tr className="bg-[var(--bg-tertiary)]">
-                      <td colSpan={4} className="p-4">
+                      <td colSpan={4} className="p-3">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">Daily Total</span>
                       </td>
                       {days.map((day) => (
-                        <td key={day.key} className="p-3 text-center">
+                        <td key={day.key} className="px-1 py-3 text-center">
                           <span className={`text-sm font-semibold ${getDayTotal(day.key) > 8 ? 'text-warning-500' : 'text-[var(--text-primary)]'}`}>
                             {formatHours(getDayTotal(day.key))}
                           </span>
                         </td>
                       ))}
-                      <td className="p-3 text-center">
+                      <td className="px-1 py-3 text-center">
                         <span className="text-sm font-bold text-brand-600 dark:text-brand-400">
                           {formatHours(totalHours)}
                         </span>
