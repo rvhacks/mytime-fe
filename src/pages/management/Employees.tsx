@@ -135,9 +135,37 @@ export default function Employees() {
   };
 
   const copyPw = () => {
-    navigator.clipboard.writeText(generatedPw);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(generatedPw).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {
+          fallbackCopy(generatedPw);
+        });
+      } else {
+        fallbackCopy(generatedPw);
+      }
+    } catch {
+      fallbackCopy(generatedPw);
+    }
+  };
+
+  const fallbackCopy = (text: string) => {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy. Please select and copy manually.');
+    }
+    document.body.removeChild(textarea);
   };
 
   const getDesignationName = (id: string) => designations.find((d) => d.id === id)?.name || '—';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Link2, Search, Filter } from 'lucide-react';
@@ -30,27 +30,36 @@ export default function Assignments() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [filterEmpId, setFilterEmpId] = useState<string>('');
-  const [filterProjId, setFilterProjId] = useState<string>('');
   const [roles, setRoles] = useState<{id: string, label: string}[]>([]);
-
   // Pre-populate project filter from URL query
   const [searchParams] = useSearchParams();
-  useEffect(() => {
-    const pid = searchParams.get('projectId');
-    if (pid) setFilterProjId(pid);
-  }, [searchParams]);
+  const initProjectId = useMemo(() => searchParams.get('projectId') || '', []);
+  const [filterProjId, setFilterProjId] = useState<string>(initProjectId);
 
-  const loadPage = useCallback((p: number, l: number) => {
-    fetchAssignments({ page: p, limit: l });
-  }, [fetchAssignments]);
+  const loadPage = useCallback((p: number, l: number, empId?: string, projId?: string, q?: string) => {
+    const params: any = { page: p, limit: l };
+    const effectiveEmp = empId !== undefined ? empId : filterEmpId;
+    const effectiveProj = projId !== undefined ? projId : filterProjId;
+    const effectiveSearch = q !== undefined ? q : search;
+    if (effectiveEmp) params.userId = effectiveEmp;
+    if (effectiveProj) params.projectId = effectiveProj;
+    if (effectiveSearch) params.search = effectiveSearch;
+    fetchAssignments(params);
+  }, [fetchAssignments, filterEmpId, filterProjId, search]);
 
   useEffect(() => {
     loadPage(1, limit);
     fetchEmployees({ limit: 100 });
-    fetchProjects({ limit: 100 });
+    fetchProjects({ limit: 999 });
     roleAPI.getAll().then(r => { console.log('Roles loaded:', r.data.data); setRoles(r.data.data || []); }).catch(e => console.error('Failed to load roles:', e));
   }, []);
   useEffect(() => { loadPage(page, limit); }, [page, limit]);
+
+  // Server-side filtering: re-fetch when filters change
+  useEffect(() => {
+    const t = setTimeout(() => { setPage(1); loadPage(1, limit, filterEmpId, filterProjId, search); }, 300);
+    return () => clearTimeout(t);
+  }, [filterEmpId, filterProjId, search]);
 
   const updateField = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -90,15 +99,7 @@ export default function Assignments() {
     return projects.find((x) => x.id === (a.projectId || a))?.name || (a.projectId || a);
   };
 
-  const filteredAssignments = assignments.filter((a) => {
-    if (filterEmpId && a.employeeId !== filterEmpId) return false;
-    if (filterProjId && a.projectId !== filterProjId) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return getEmpName(a.employeeId).toLowerCase().includes(q) || getProjName(a.projectId).toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const filteredAssignments = assignments;
 
   // Paginated search for employee dropdown
   const fetchEmpOptions = async (params: { search: string; page: number; limit: number }) => {

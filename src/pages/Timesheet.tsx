@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Plus,
   Trash2,
@@ -10,11 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  Loader2,
   History,
   Eye,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { RejectionHistoryModal } from '@/components/shared/RejectionHistoryModal';
@@ -109,20 +108,15 @@ export default function Timesheet() {
 
   // Separate state for the viewed employee's timesheet to avoid polluting the user's own store
   const [viewOnlyTimesheet, setViewOnlyTimesheet] = useState<TimesheetWeek | null>(null);
-  const [viewOnlyLoading, setViewOnlyLoading] = useState(false);
   const [viewEmployeeName, setViewEmployeeName] = useState<string>('');  // fetched from API
 
   const [assignedProjects, setAssignedProjects] = useState<{id:string;name:string;code:string;status:string;role:string}[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
 
   useEffect(() => {
     if (isViewOnly) {
-      // In view-only mode, we don't fetch the logged-in user's timesheets or projects
-      setProjectsLoading(false);
       return;
     }
     fetchTimesheets();
-    setProjectsLoading(true);
     timesheetAPI.getAssignedProjects('own').then((res) => {
       const raw = res.data.data || [];
       setAssignedProjects(raw.map((p: any) => ({
@@ -132,7 +126,7 @@ export default function Timesheet() {
         status: p.status || 'active',
         role: p.assignment_role || '',
       })));
-    }).catch(() => {}).finally(() => setProjectsLoading(false));
+    }).catch(() => {});
   }, []);
 
   // Role-based milestones: keyed by role string
@@ -206,6 +200,15 @@ export default function Timesheet() {
 
   const getRowTotal = (hours: Record<string, number>) =>
     Object.values(hours).reduce((a, b) => a + b, 0);
+
+  const formatHours = (h: number) => {
+    if (h === 0) return '0h';
+    const hrs = Math.floor(h);
+    const mins = Math.round((h - hrs) * 60);
+    if (mins === 0) return `${hrs}h`;
+    if (hrs === 0) return `${mins}m`;
+    return `${hrs}h ${mins}m`;
+  };
 
   const getDayTotal = (day: string) =>
     rows.reduce((sum, row) => sum + (row.hours[day] || 0), 0);
@@ -307,7 +310,6 @@ export default function Timesheet() {
     const end = formatLocalDate(sunday);
     if (isViewOnly && viewEmployeeId) {
       // Fetch the employee's timesheet via the view API (employee_id like CT26-0001)
-      setViewOnlyLoading(true);
       timesheetAPI.viewEmployeeWeekTimesheet(viewEmployeeId, start)
         .then((res) => {
           const ts = res.data.data;
@@ -351,8 +353,7 @@ export default function Timesheet() {
         })
         .catch(() => {
           setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
-        })
-        .finally(() => setViewOnlyLoading(false));
+        });
     } else {
       loadWeek(start, end);
     }
@@ -545,7 +546,7 @@ export default function Timesheet() {
                       <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-40">
                         Milestone
                       </th>
-                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-56">
+                      <th className="text-left text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-64">
                         Task
                       </th>
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider p-4 w-20">
@@ -624,10 +625,11 @@ export default function Timesheet() {
                             </td>
                             {/* Task */}
                             <td className="p-3">
-                              <input type="text" value={row.taskDescription}
+                              <textarea value={row.taskDescription}
                                 onChange={(e) => updateRowField(row.id, 'taskDescription', e.target.value)}
                                 disabled={locked} placeholder="What did you work on?"
-                                className="w-full h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 placeholder:text-[var(--text-tertiary)]"
+                                rows={2}
+                                className="w-full min-h-[52px] rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-[var(--text-primary)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 placeholder:text-[var(--text-tertiary)] resize-y"
                               />
                             </td>
                             {/* Billable */}
@@ -673,7 +675,7 @@ export default function Timesheet() {
                             })}
                             {/* Row Total */}
                             <td className="p-3 text-center">
-                              <span className="text-sm font-semibold text-[var(--text-primary)]">{getRowTotal(row.hours)}h</span>
+                              <span className="text-sm font-semibold text-[var(--text-primary)]">{formatHours(getRowTotal(row.hours))}</span>
                             </td>
                             {/* Per-Row Status Badge */}
                             <td className="p-3 text-center">
@@ -715,13 +717,13 @@ export default function Timesheet() {
                       {days.map((day) => (
                         <td key={day.key} className="p-3 text-center">
                           <span className={`text-sm font-semibold ${getDayTotal(day.key) > 8 ? 'text-warning-500' : 'text-[var(--text-primary)]'}`}>
-                            {getDayTotal(day.key)}h
+                            {formatHours(getDayTotal(day.key))}
                           </span>
                         </td>
                       ))}
                       <td className="p-3 text-center">
                         <span className="text-sm font-bold text-brand-600 dark:text-brand-400">
-                          {totalHours}h
+                          {formatHours(totalHours)}
                         </span>
                       </td>
                       <td />
@@ -772,7 +774,7 @@ export default function Timesheet() {
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-[var(--text-secondary)]">Total Logged</p>
-                <p className="text-2xl font-bold text-[var(--text-primary)] mt-1">{totalHours}h</p>
+                <p className="text-2xl font-bold text-[var(--text-primary)] mt-1">{formatHours(totalHours)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -785,20 +787,20 @@ export default function Timesheet() {
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-[var(--text-secondary)]">Remaining</p>
                 <p className={`text-2xl font-bold mt-1 ${40 - totalHours > 0 ? 'text-warning-500' : 'text-accent-500'}`}>
-                  {Math.max(0, 40 - totalHours)}h
+                  {formatHours(Math.max(0, 40 - totalHours))}
                 </p>
               </CardContent>
             </Card>
             <Card className="border-l-4 border-l-accent-500">
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-accent-600 dark:text-accent-400">Billable</p>
-                <p className="text-2xl font-bold text-accent-600 dark:text-accent-400 mt-1">{billableHours}h</p>
+                <p className="text-2xl font-bold text-accent-600 dark:text-accent-400 mt-1">{formatHours(billableHours)}</p>
               </CardContent>
             </Card>
             <Card className="border-l-4 border-l-warning-500">
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-warning-600 dark:text-warning-400">Non-Billable</p>
-                <p className="text-2xl font-bold text-warning-600 dark:text-warning-400 mt-1">{nonBillableHours}h</p>
+                <p className="text-2xl font-bold text-warning-600 dark:text-warning-400 mt-1">{formatHours(nonBillableHours)}</p>
               </CardContent>
             </Card>
           </div>
