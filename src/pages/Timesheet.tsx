@@ -185,7 +185,7 @@ export default function Timesheet() {
   const activeTimesheet = isViewOnly ? viewOnlyTimesheet : currentTimesheet;
 
   // Backdate support: allow editing past weeks (configurable limit)
-  const BACKDATE_LIMIT_WEEKS = 4;
+  const BACKDATE_LIMIT_WEEKS = 8;
   const isBackdatedBeyondLimit = weekOffset < -BACKDATE_LIMIT_WEEKS;
   // Per-row locking: a row is locked if its status is submitted or approved
   const isRowLocked = (status: string) => ['submitted', 'resubmitted', 'approved'].includes(status);
