@@ -64,6 +64,8 @@ export const userAPI = {
     api.put('/users/change-password', { currentPassword, newPassword }),
   getMyReport: (params?: any) => api.get('/users/report', { params }),
   getMyTeam: (params?: { projectId?: string }) => api.get('/users/team', { params }),
+  getTeamReport: (params?: any) => api.get('/users/team-report', { params }),
+  exportTeamReport: (params?: any) => api.get('/users/team-report/export', { params, responseType: 'blob' }),
 };
 
 // ---- ADMIN: DESIGNATIONS ----
@@ -98,6 +100,7 @@ export const assignmentAPI = {
   getAll: (params?: any) => api.get('/admin/assignments', { params }),
   create: (data: any) => api.post('/admin/assignments', data),
   delete: (id: string) => api.delete(`/admin/assignments/${id}`),
+  exportEmployeeProjects: () => api.get('/admin/assignments/export', { responseType: 'blob' }),
 };
 
 // ---- ADMIN: MILESTONES ----
@@ -155,6 +158,9 @@ export const timesheetAPI = {
   // Admin: view employee timesheets
   getEmployeeTimesheets: (employeeId: string, params?: any) =>
     api.get(`/timesheets/employee/${employeeId}`, { params }),
+  // Admin: reopen an approved week for editing (past 8 weeks only, enforced server-side)
+  reopenApprovedWeek: (employeeId: string, weekStartDate: string) =>
+    api.post(`/timesheets/employee/${employeeId}/week/reopen`, { weekStartDate }),
   // Reports
   getReports: (filters: { startDate?: string; endDate?: string; userId?: string; projectId?: string }) =>
     api.get('/timesheets/reports', { params: filters }),

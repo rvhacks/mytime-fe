@@ -8,6 +8,7 @@ import { buildAvatarUrl } from '@/lib/avatarUtils';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { RejectionHistoryModal } from '@/components/shared/RejectionHistoryModal';
 import { EmptyState } from '@/components/shared/States';
+import { Pagination } from '@/components/shared/Pagination';
 import { Textarea } from '@/components/ui/textarea';
 import { useAdminStore } from '@/store/adminStore';
 import { useAuthStore } from '@/store/authStore';
@@ -26,16 +27,28 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function Approvals() {
   const { user } = useAuthStore();
-  const { approvals, fetchApprovals, approveEntries, rejectEntries, isLoading } = useAdminStore();
+  const { approvals, approvalPagination, fetchApprovals, approveEntries, rejectEntries, isLoading } = useAdminStore();
   const [rejectDialog, setRejectDialog] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState('');
   const [viewDialog, setViewDialog] = useState<string | null>(null);
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [rejectionHistoryEntryId, setRejectionHistoryEntryId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   useEffect(() => {
-    fetchApprovals();
-  }, []);
+    fetchApprovals({ page, limit });
+  }, [page, limit]);
+
+  // Re-fetch the current page from the server after an approve/reject action, so the
+  // table and the pagination bar always reflect true server state (not a local guess).
+  // If that empties out the last page, step back a page.
+  const refreshAfterAction = async () => {
+    await fetchApprovals({ page, limit });
+    if (useAdminStore.getState().approvals.length === 0 && page > 1) {
+      setPage((p) => p - 1);
+    }
+  };
 
   // Group entries by employee
   const grouped = approvals.reduce((acc, entry) => {
@@ -67,6 +80,7 @@ export default function Approvals() {
     if (ids.length === 0) { toast.error('Select at least one entry'); return; }
     await approveEntries(ids);
     setSelectedEntries(new Set());
+    await refreshAfterAction();
     toast.success(`${ids.length} entries approved`);
   };
 
@@ -76,11 +90,13 @@ export default function Approvals() {
     setRejectDialog(null);
     setRejectComment('');
     setSelectedEntries((prev) => { const n = new Set(prev); n.delete(rejectDialog); return n; });
+    await refreshAfterAction();
     toast.success('Entry rejected');
   };
 
   const handleApproveOne = async (id: string) => {
     await approveEntries([id]);
+    await refreshAfterAction();
     toast.success('Entry approved');
   };
 
@@ -96,7 +112,7 @@ export default function Approvals() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">Approvals</h1>
           <p className="text-[var(--text-secondary)] text-sm mt-1">
-            {approvals.length} pending {approvals.length === 1 ? 'entry' : 'entries'} from your direct reports
+            {approvalPagination.total} pending {approvalPagination.total === 1 ? 'entry' : 'entries'} from your direct reports
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -246,6 +262,22 @@ export default function Approvals() {
           </CardContent>
         </Card>
       ))}
+
+      {/* Pagination */}
+      {approvalPagination.total > 0 && (
+        <Card>
+          <CardContent className="p-0">
+            <Pagination
+              page={approvalPagination.page}
+              totalPages={approvalPagination.totalPages}
+              total={approvalPagination.total}
+              limit={approvalPagination.limit}
+              onPageChange={(p) => setPage(p)}
+              onLimitChange={(l) => { setLimit(l); setPage(1); }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Reject Dialog */}
       <Dialog open={!!rejectDialog} onOpenChange={() => setRejectDialog(null)}>

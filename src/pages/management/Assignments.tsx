@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Link2, Search, Filter } from 'lucide-react';
+import { Plus, Trash2, Link2, Search, Filter, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Pagination } from '@/components/shared/Pagination';
 import { SearchableDropdown } from '@/components/shared/SearchableDropdown';
 import { useManagementStore } from '@/store/managementStore';
 import { useAdminStore } from '@/store/adminStore';
-import { employeeAPI, projectAPI, roleAPI } from '@/services/api';
+import { employeeAPI, projectAPI, roleAPI, assignmentAPI } from '@/services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -85,6 +85,24 @@ export default function Assignments() {
     loadPage(page, limit);
   };
 
+  // Export every employee + their assigned projects (comma-separated) as CSV, alphabetical by name
+  const handleExport = async () => {
+    try {
+      const res = await assignmentAPI.exportEmployeeProjects();
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `employee-project-assignments-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Employee assignments exported');
+    } catch {
+      toast.error('Export failed');
+    }
+  };
+
   const getEmpName = (a: any) => {
     if (a.employeeName) return a.employeeName;
     const e = employees.find((x) => x.id === (a.employeeId || a));
@@ -132,9 +150,14 @@ export default function Assignments() {
             Assign employees to projects · {assignmentPagination.total} total
           </p>
         </div>
-        <Button size="sm" onClick={() => { setForm(emptyForm); setShowAdd(true); }}>
-          <Plus className="w-4 h-4" /> Assign Employee
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleExport}>
+            <Download className="w-4 h-4" /> Export
+          </Button>
+          <Button size="sm" onClick={() => { setForm(emptyForm); setShowAdd(true); }}>
+            <Plus className="w-4 h-4" /> Assign Employee
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">

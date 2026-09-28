@@ -100,7 +100,10 @@ export default function Dashboard() {
   }, [user?.role]);
 
   const stats = dashboardStats;
-  const billableRate = stats && stats.totalHoursLogged > 0 ? Math.round((stats.billableHours / stats.totalHoursLogged) * 100) : 0;
+  // Billable/non-billable hours only come from approved entries (see adminService.getDashboardStats),
+  // so the rate is "share of approved hours that are billable" — dividing by totalHoursLogged instead
+  // would understate it whenever most hours are still awaiting approval.
+  const billableRate = stats && stats.approvedHours > 0 ? Math.round((stats.billableHours / stats.approvedHours) * 100) : 0;
 
   const summaryCards = [
     {
@@ -111,6 +114,16 @@ export default function Dashboard() {
       color: 'text-brand-500',
       bg: 'bg-brand-50 dark:bg-brand-900/20',
       trend: `${stats?.activeProjects || 0} active projects`,
+      trendUp: true,
+    },
+    {
+      title: 'Approved Hours',
+      value: stats ? String(Math.round(stats.approvedHours)) : '—',
+      subtitle: 'This month',
+      icon: <CheckCircle2 className="w-5 h-5" />,
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      trend: stats && stats.totalHoursLogged > 0 ? `${Math.round((stats.approvedHours / stats.totalHoursLogged) * 100)}% of hours logged` : 'No data yet',
       trendUp: true,
     },
     {
@@ -134,14 +147,14 @@ export default function Dashboard() {
       trendUp: false,
     },
     {
-      title: 'Approval Rate',
-      value: stats ? `${stats.approvalRate}%` : '—',
-      subtitle: 'This month',
-      icon: <CheckCircle2 className="w-5 h-5" />,
+      title: 'Unapproved Hours',
+      value: stats ? String(Math.round(stats.unapprovedHours)) : '—',
+      subtitle: 'Awaiting manager review',
+      icon: <AlertCircle className="w-5 h-5" />,
       color: 'text-purple-500',
       bg: 'bg-purple-50 dark:bg-purple-900/20',
-      trend: stats && stats.approvalRate >= 80 ? 'Good standing' : 'Needs improvement',
-      trendUp: (stats?.approvalRate || 0) >= 80,
+      trend: stats && stats.unapprovedHours > 0 ? `${Math.round(stats.unapprovedHours)}h pending` : 'All caught up',
+      trendUp: !(stats && stats.unapprovedHours > 0),
     },
   ];
 
@@ -237,7 +250,7 @@ export default function Dashboard() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {summaryCards.map((card, i) => (
           <motion.div key={card.title} variants={itemVariants}>
             <Card className="hover:shadow-md transition-shadow duration-300 group">

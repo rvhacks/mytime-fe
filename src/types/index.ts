@@ -221,7 +221,8 @@ export interface DashboardStats {
   totalHoursLogged: number;
   billableHours: number;
   nonBillableHours: number;
-  approvalRate: number;
+  approvedHours: number;
+  unapprovedHours: number;
   pendingApprovals: number;
   isPersonal?: boolean;
 }

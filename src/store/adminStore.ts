@@ -11,6 +11,7 @@ interface AdminStore {
   // Pagination
   projectPagination: PaginationInfo;
   milestonePagination: PaginationInfo;
+  approvalPagination: PaginationInfo;
 
   // Projects
   fetchProjects: (params?: any) => Promise<void>;
@@ -23,7 +24,7 @@ interface AdminStore {
   fetchMilestones: (params?: any) => Promise<void>;
 
   // Approvals
-  fetchApprovals: () => Promise<void>;
+  fetchApprovals: (params?: any) => Promise<void>;
   approveEntries: (entryIds: string[], comments?: string) => Promise<void>;
   rejectEntries: (entryIds: string[], comments: string) => Promise<void>;
 
@@ -117,6 +118,7 @@ export const useAdminStore = create<AdminStore>((set) => ({
   isLoading: false,
   projectPagination: defaultPagination,
   milestonePagination: defaultPagination,
+  approvalPagination: defaultPagination,
   managerApprovals: [],
   pendingApprovalCount: 0,
 
@@ -207,14 +209,16 @@ export const useAdminStore = create<AdminStore>((set) => ({
     } catch { set({ isLoading: false }); }
   },
 
-  // ---- APPROVALS (manager view - unchanged) ----
-  fetchApprovals: async () => {
+  // ---- APPROVALS (manager view — paginated) ----
+  fetchApprovals: async (params?: any) => {
     set({ isLoading: true });
     try {
-      const res = await timesheetAPI.getPendingApprovals();
+      const res = await timesheetAPI.getPendingApprovals(params || { page: 1, limit: 20 });
       const rows = res.data.data?.rows || res.data.data || [];
       const mapped = (Array.isArray(rows) ? rows : []).map(mapApprovalEntry);
-      set({ approvals: mapped, isLoading: false, pendingApprovalCount: mapped.length });
+      const pagination = extractPagination(res);
+      // pendingApprovalCount reflects the true total across all pages, not just this page
+      set({ approvals: mapped, approvalPagination: pagination, isLoading: false, pendingApprovalCount: pagination.total });
     } catch { set({ isLoading: false }); }
   },
 
@@ -259,12 +263,12 @@ export const useAdminStore = create<AdminStore>((set) => ({
     } catch { set({ isLoading: false }); }
   },
 
-  // Lightweight fetch for sidebar badge
+  // Lightweight fetch for sidebar badge — limit:1 keeps the payload small, pagination.total is the real count
   fetchPendingApprovalCount: async () => {
     try {
-      const res = await timesheetAPI.getPendingApprovals();
-      const rows = res.data.data?.rows || res.data.data || [];
-      set({ pendingApprovalCount: Array.isArray(rows) ? rows.length : 0 });
+      const res = await timesheetAPI.getPendingApprovals({ page: 1, limit: 1 });
+      const pagination = extractPagination(res);
+      set({ pendingApprovalCount: pagination.total });
     } catch { /* silent */ }
   },
 }));

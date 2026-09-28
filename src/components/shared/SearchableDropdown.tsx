@@ -7,8 +7,13 @@ interface FetchResult {
 }
 
 interface SearchableDropdownProps {
-  value: string;
-  onChange: (value: string) => void;
+  // Single-select (default mode) — ignored when `multiple` is true.
+  value?: string;
+  onChange?: (value: string) => void;
+  // Multi-select — set `multiple` and use `values`/`onChangeValues` instead of `value`/`onChange`.
+  multiple?: boolean;
+  values?: string[];
+  onChangeValues?: (values: string[]) => void;
   fetchFn: (params: { search: string; page: number; limit: number }) => Promise<FetchResult>;
   getOptionValue: (item: any) => string;
   getOptionLabel: (item: any) => string;
@@ -18,8 +23,11 @@ interface SearchableDropdownProps {
 }
 
 export function SearchableDropdown({
-  value,
+  value = '',
   onChange,
+  multiple = false,
+  values,
+  onChangeValues,
   fetchFn,
   getOptionValue,
   getOptionLabel,
@@ -27,6 +35,7 @@ export function SearchableDropdown({
   disabled = false,
   className = '',
 }: SearchableDropdownProps) {
+  const selectedValues = values || [];
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<any[]>([]);
@@ -34,6 +43,9 @@ export function SearchableDropdown({
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState('');
+  // Multi-select: label cache keyed by id, so the trigger can show the single selected item's
+  // name (not just "1 selected") without waiting on the options list to happen to include it.
+  const [selectedLabelsMap, setSelectedLabelsMap] = useState<Record<string, string>>({});
   const [highlightIdx, setHighlightIdx] = useState(-1);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,8 +106,9 @@ export function SearchableDropdown({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Resolve selected label
+  // Resolve selected label (single-select mode)
   useEffect(() => {
+    if (multiple) return;
     if (!value) {
       setSelectedLabel('');
       return;
@@ -111,7 +124,36 @@ export function SearchableDropdown({
         if (match) setSelectedLabel(getOptionLabel(match));
       }).catch(() => {});
     }
-  }, [value, items]);
+  }, [value, items, multiple]);
+
+  // Resolve selected labels (multi-select mode) — fetch labels for any selected ids we haven't seen yet
+  useEffect(() => {
+    if (!multiple) return;
+    const unresolved = selectedValues.filter((v) => !selectedLabelsMap[v]);
+    if (unresolved.length === 0) return;
+
+    const fromItems: Record<string, string> = {};
+    const stillUnresolved: string[] = [];
+    unresolved.forEach((v) => {
+      const found = items.find((item) => getOptionValue(item) === v);
+      if (found) fromItems[v] = getOptionLabel(found);
+      else stillUnresolved.push(v);
+    });
+    if (Object.keys(fromItems).length > 0) {
+      setSelectedLabelsMap((prev) => ({ ...prev, ...fromItems }));
+    }
+    if (stillUnresolved.length > 0) {
+      fetchFn({ search: '', page: 1, limit: 100 }).then((result) => {
+        const found: Record<string, string> = {};
+        stillUnresolved.forEach((v) => {
+          const match = result.rows.find((item: any) => getOptionValue(item) === v);
+          if (match) found[v] = getOptionLabel(match);
+        });
+        if (Object.keys(found).length > 0) setSelectedLabelsMap((prev) => ({ ...prev, ...found }));
+      }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedValues.join(','), items, multiple]);
 
   // Scroll pagination
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -131,10 +173,7 @@ export function SearchableDropdown({
       setHighlightIdx((prev) => Math.max(prev - 1, 0));
     } else if (e.key === 'Enter' && highlightIdx >= 0 && highlightIdx < items.length) {
       e.preventDefault();
-      const item = items[highlightIdx];
-      onChange(getOptionValue(item));
-      setSelectedLabel(getOptionLabel(item));
-      setIsOpen(false);
+      handleSelect(items[highlightIdx]);
     } else if (e.key === 'Escape') {
       setIsOpen(false);
     }
@@ -151,14 +190,28 @@ export function SearchableDropdown({
   }, [highlightIdx]);
 
   const handleSelect = (item: any) => {
-    onChange(getOptionValue(item));
+    const val = getOptionValue(item);
+    if (multiple) {
+      const next = selectedValues.includes(val)
+        ? selectedValues.filter((v) => v !== val)
+        : [...selectedValues, val];
+      onChangeValues?.(next);
+      setSelectedLabelsMap((prev) => ({ ...prev, [val]: getOptionLabel(item) }));
+      // Stay open — multi-select is meant for picking several in one go.
+      return;
+    }
+    onChange?.(val);
     setSelectedLabel(getOptionLabel(item));
     setIsOpen(false);
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onChange('');
+    if (multiple) {
+      onChangeValues?.([]);
+      return;
+    }
+    onChange?.('');
     setSelectedLabel('');
   };
 
@@ -173,6 +226,15 @@ export function SearchableDropdown({
     }
   }, [isOpen]);
 
+  const hasSelection = multiple ? selectedValues.length > 0 : !!value;
+  const displayLabel = multiple
+    ? selectedValues.length === 0
+      ? ''
+      : selectedValues.length === 1
+      ? selectedLabelsMap[selectedValues[0]] || ''
+      : `${selectedValues.length} selected`
+    : selectedLabel;
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Trigger Button */}
@@ -182,10 +244,10 @@ export function SearchableDropdown({
         disabled={disabled}
         className="w-full h-10 rounded-xl border border-[var(--input-border)] bg-[var(--input-bg)] text-sm text-left px-3 pr-8 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:border-brand-400/50"
       >
-        <span className={`flex-1 truncate ${selectedLabel ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
-          {selectedLabel || placeholder}
+        <span className={`flex-1 truncate ${displayLabel ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
+          {displayLabel || placeholder}
         </span>
-        {value && (
+        {hasSelection && (
           <X
             className="w-3.5 h-3.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer absolute right-8 top-1/2 -translate-y-1/2"
             onClick={handleClear}
@@ -230,7 +292,7 @@ export function SearchableDropdown({
               items.map((item, idx) => {
                 const val = getOptionValue(item);
                 const label = getOptionLabel(item);
-                const isSelected = val === value;
+                const isSelected = multiple ? selectedValues.includes(val) : val === value;
                 const isHighlighted = idx === highlightIdx;
                 return (
                   <button
@@ -245,8 +307,15 @@ export function SearchableDropdown({
                         : 'text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                     }`}
                   >
+                    {multiple && (
+                      <span className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center ${
+                        isSelected ? 'bg-brand-500 border-brand-500' : 'border-[var(--input-border)]'
+                      }`}>
+                        {isSelected && <span className="text-white text-[10px] leading-none">✓</span>}
+                      </span>
+                    )}
                     <span className="truncate">{label}</span>
-                    {isSelected && <span className="ml-auto text-brand-500">✓</span>}
+                    {!multiple && isSelected && <span className="ml-auto text-brand-500">✓</span>}
                   </button>
                 );
               })

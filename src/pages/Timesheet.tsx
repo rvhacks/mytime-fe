@@ -12,12 +12,14 @@ import {
   Copy,
   History,
   Eye,
+  Unlock,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { RejectionHistoryModal } from '@/components/shared/RejectionHistoryModal';
 import { useTimesheetStore } from '@/store/timesheetStore';
+import { useAuthStore } from '@/store/authStore';
 import { timesheetAPI } from '@/services/api';
 import type { TimesheetWeek, TimesheetRow } from '@/types';
 import toast, { Toaster } from 'react-hot-toast';
@@ -96,6 +98,7 @@ export default function Timesheet() {
     _lastSavedHash,
   } = useTimesheetStore();
 
+  const { user } = useAuthStore();
   const navigate = useNavigate();
 
   // ---- Read-only View Mode (for RM/Admin viewing employee timesheet) ----
@@ -302,6 +305,73 @@ export default function Timesheet() {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
+  // Fetch a view-only employee's week — extracted so it can be re-run after an admin action
+  // (like "Open for Edit") without waiting for weekOffset to change.
+  const fetchViewOnlyWeek = useCallback((empCode: string, start: string, end: string) => {
+    timesheetAPI.viewEmployeeWeekTimesheet(empCode, start)
+      .then((res) => {
+        const ts = res.data.data;
+        // Set employee name from API response
+        const emp = res.data.employee;
+        if (emp?.fullName) setViewEmployeeName(emp.fullName);
+        if (ts && ts.entries && ts.entries.length > 0) {
+          const mappedRows: TimesheetRow[] = (ts.entries || []).map((e: any) => ({
+            id: e.id,
+            projectId: e.project_id || e.project?.id || '',
+            milestoneId: e.milestone_id || e.milestone?.id || '',
+            taskDescription: e.task_description || '',
+            billable: e.billable !== false,
+            hours: {
+              mon: Number(e.hours_mon) || 0, tue: Number(e.hours_tue) || 0,
+              wed: Number(e.hours_wed) || 0, thu: Number(e.hours_thu) || 0,
+              fri: Number(e.hours_fri) || 0, sat: Number(e.hours_sat) || 0,
+              sun: Number(e.hours_sun) || 0,
+            },
+            status: (e.status || 'draft'),
+            submittedAt: e.submitted_at || undefined,
+            reviewedBy: e.reviewed_by || undefined,
+            reviewerName: e.reviewer ? `${e.reviewer.first_name} ${e.reviewer.last_name}` : undefined,
+            reviewedAt: e.reviewed_at || undefined,
+            reviewComments: e.review_comments || undefined,
+            projectName: e.project?.name || '',
+            projectCode: e.project?.project_code || '',
+            projectColor: e.project?.color || '',
+            milestoneName: e.milestone?.name || '',
+            resubmissionCount: e.resubmission_count || 0,
+            rejectionHistory: e.rejection_history || [],
+          }));
+          const totalHours = mappedRows.reduce((s, r) => s + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
+          setViewOnlyTimesheet({
+            id: ts.id, userId: ts.user_id, weekStartDate: start, weekEndDate: end,
+            totalHours, rows: mappedRows,
+          });
+        } else {
+          setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
+        }
+      })
+      .catch(() => {
+        setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
+      });
+  }, []);
+
+  // ---- Admin: Open for Edit (revert this week's approved entries to draft) ----
+  const [reopening, setReopening] = useState(false);
+  const canReopen = !!user && user.role === 'admin' && isViewOnly && !!viewEmployeeId && !isBackdatedBeyondLimit;
+  const hasApprovedEntries = (viewOnlyTimesheet?.rows || []).some((r) => r.status === 'approved');
+  const handleOpenForEdit = async () => {
+    if (!viewEmployeeId || !viewOnlyTimesheet) return;
+    setReopening(true);
+    try {
+      await timesheetAPI.reopenApprovedWeek(viewEmployeeId, viewOnlyTimesheet.weekStartDate);
+      toast.success('Timesheet reopened — the employee can now edit and resubmit it');
+      fetchViewOnlyWeek(viewEmployeeId, viewOnlyTimesheet.weekStartDate, viewOnlyTimesheet.weekEndDate);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reopen timesheet');
+    } finally {
+      setReopening(false);
+    }
+  };
+
   useEffect(() => {
     const monday = shiftWeek(thisMonday, weekOffset);
     const sunday = new Date(monday);
@@ -309,51 +379,7 @@ export default function Timesheet() {
     const start = formatLocalDate(monday);
     const end = formatLocalDate(sunday);
     if (isViewOnly && viewEmployeeId) {
-      // Fetch the employee's timesheet via the view API (employee_id like CT26-0001)
-      timesheetAPI.viewEmployeeWeekTimesheet(viewEmployeeId, start)
-        .then((res) => {
-          const ts = res.data.data;
-          // Set employee name from API response
-          const emp = res.data.employee;
-          if (emp?.fullName) setViewEmployeeName(emp.fullName);
-          if (ts && ts.entries && ts.entries.length > 0) {
-            const mappedRows: TimesheetRow[] = (ts.entries || []).map((e: any) => ({
-              id: e.id,
-              projectId: e.project_id || e.project?.id || '',
-              milestoneId: e.milestone_id || e.milestone?.id || '',
-              taskDescription: e.task_description || '',
-              billable: e.billable !== false,
-              hours: {
-                mon: Number(e.hours_mon) || 0, tue: Number(e.hours_tue) || 0,
-                wed: Number(e.hours_wed) || 0, thu: Number(e.hours_thu) || 0,
-                fri: Number(e.hours_fri) || 0, sat: Number(e.hours_sat) || 0,
-                sun: Number(e.hours_sun) || 0,
-              },
-              status: (e.status || 'draft'),
-              submittedAt: e.submitted_at || undefined,
-              reviewedBy: e.reviewed_by || undefined,
-              reviewerName: e.reviewer ? `${e.reviewer.first_name} ${e.reviewer.last_name}` : undefined,
-              reviewedAt: e.reviewed_at || undefined,
-              reviewComments: e.review_comments || undefined,
-              projectName: e.project?.name || '',
-              projectCode: e.project?.project_code || '',
-              projectColor: e.project?.color || '',
-              milestoneName: e.milestone?.name || '',
-              resubmissionCount: e.resubmission_count || 0,
-              rejectionHistory: e.rejection_history || [],
-            }));
-            const totalHours = mappedRows.reduce((s, r) => s + Object.values(r.hours).reduce((a, b) => a + b, 0), 0);
-            setViewOnlyTimesheet({
-              id: ts.id, userId: ts.user_id, weekStartDate: start, weekEndDate: end,
-              totalHours, rows: mappedRows,
-            });
-          } else {
-            setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
-          }
-        })
-        .catch(() => {
-          setViewOnlyTimesheet({ id: '', userId: '', weekStartDate: start, weekEndDate: end, totalHours: 0, rows: [] });
-        });
+      fetchViewOnlyWeek(viewEmployeeId, start, end);
     } else {
       loadWeek(start, end);
     }
@@ -474,6 +500,21 @@ export default function Timesheet() {
               Viewing <strong>{viewEmployeeName || viewEmployeeId || 'employee'}</strong>'s timesheet <span className="text-blue-400">(read-only)</span>
             </p>
           </div>
+          <div className="flex items-center gap-2">
+          {canReopen && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenForEdit}
+              isLoading={reopening}
+              disabled={!hasApprovedEntries}
+              title={hasApprovedEntries ? 'Revert this week\'s approved entries to draft so the employee can edit and resubmit' : 'No approved entries in this week to reopen'}
+              className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+            >
+              <Unlock className="w-4 h-4" />
+              Open for Edit
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -493,6 +534,7 @@ export default function Timesheet() {
           >
             ← Back
           </Button>
+          </div>
         </motion.div>
       )}
 

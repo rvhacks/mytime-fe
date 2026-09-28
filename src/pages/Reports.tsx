@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Filter, Clock, CheckCircle2, DollarSign, Receipt, X, FileSpreadsheet, Users, ChevronDown, Eye, ListFilter } from 'lucide-react';
+import { Download, Filter, Clock, CheckCircle2, AlertCircle, DollarSign, Receipt, X, FileSpreadsheet, Users, ChevronDown, Eye, ListFilter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pagination } from '@/components/shared/Pagination';
@@ -20,6 +20,7 @@ interface ReportRow {
   employeeName: string;
   totalSubmittedHours: number;
   approvedHours: number;
+  unapprovedHours: number;
   billableHours: number;
   nonBillableHours: number;
 }
@@ -44,6 +45,7 @@ interface PastTimesheetRow {
 interface ReportSummary {
   totalSubmittedHours: number;
   approvedHours: number;
+  unapprovedHours: number;
   billableHours: number;
   nonBillableHours: number;
 }
@@ -102,15 +104,15 @@ export default function Reports() {
 
   // ========== SUMMARY TAB STATE ==========
   const [rows, setRows] = useState<ReportRow[]>([]);
-  const [summary, setSummary] = useState<ReportSummary>({ totalSubmittedHours: 0, approvedHours: 0, billableHours: 0, nonBillableHours: 0 });
+  const [summary, setSummary] = useState<ReportSummary>({ totalSubmittedHours: 0, approvedHours: 0, unapprovedHours: 0, billableHours: 0, nonBillableHours: 0 });
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(false);
 
   // Filters
   const [startDate, setStartDate] = useState(getFirstDayOfMonth());
   const [endDate, setEndDate] = useState(getLastDayOfMonth());
-  const [employeeFilter, setEmployeeFilter] = useState('');
-  const [projectFilter, setProjectFilter] = useState('');
+  const [employeeFilter, setEmployeeFilter] = useState<string[]>([]);
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [maxApprovedHours, setMaxApprovedHours] = useState('');
 
   // Selection for export
@@ -127,8 +129,8 @@ export default function Reports() {
   const [pastLoading, setPastLoading] = useState(false);
   const [pastStartDate, setPastStartDate] = useState('');
   const [pastEndDate, setPastEndDate] = useState('');
-  const [pastEmployeeFilter, setPastEmployeeFilter] = useState(initParams.get('employee') || '');
-  const [pastProjectFilter, setPastProjectFilter] = useState('');
+  const [pastEmployeeFilter, setPastEmployeeFilter] = useState<string[]>(initParams.get('employee') ? [initParams.get('employee')!] : []);
+  const [pastProjectFilter, setPastProjectFilter] = useState<string[]>([]);
   const [pastStatusFilter, setPastStatusFilter] = useState(initParams.get('status') || '');
 
   // Close export menu on click outside
@@ -145,8 +147,8 @@ export default function Reports() {
     setLoading(true);
     try {
       const params: any = { page, limit, startDate, endDate };
-      if (employeeFilter) params.employeeId = employeeFilter;
-      if (projectFilter) params.projectId = projectFilter;
+      if (employeeFilter.length > 0) params.employeeId = employeeFilter.join(',');
+      if (projectFilter.length > 0) params.projectId = projectFilter.join(',');
       if (maxApprovedHours !== '') params.maxApprovedHours = maxApprovedHours;
 
       const res = await api.get('/admin/reports/timesheet-summary', { params });
@@ -157,10 +159,11 @@ export default function Reports() {
         employeeName: r.employeeName || r.employee_name || '',
         totalSubmittedHours: parseFloat(r.totalSubmittedHours || r.total_submitted_hours || 0),
         approvedHours: parseFloat(r.approvedHours || r.approved_hours || 0),
+        unapprovedHours: parseFloat(r.unapprovedHours || r.unapproved_hours || 0),
         billableHours: parseFloat(r.billableHours || r.billable_hours || 0),
         nonBillableHours: parseFloat(r.nonBillableHours || r.non_billable_hours || 0),
       })));
-      setSummary(data.summary || { totalSubmittedHours: 0, approvedHours: 0, billableHours: 0, nonBillableHours: 0 });
+      setSummary(data.summary || { totalSubmittedHours: 0, approvedHours: 0, unapprovedHours: 0, billableHours: 0, nonBillableHours: 0 });
       setPagination(data.pagination || { page: 1, limit: 20, total: 0, totalPages: 1 });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to load report');
@@ -176,8 +179,8 @@ export default function Reports() {
       const params: any = { page, limit };
       if (pastStartDate) params.startDate = pastStartDate;
       if (pastEndDate) params.endDate = pastEndDate;
-      if (pastEmployeeFilter) params.employeeId = pastEmployeeFilter;
-      if (pastProjectFilter) params.projectId = pastProjectFilter;
+      if (pastEmployeeFilter.length > 0) params.employeeId = pastEmployeeFilter.join(',');
+      if (pastProjectFilter.length > 0) params.projectId = pastProjectFilter.join(',');
       if (pastStatusFilter) params.status = pastStatusFilter;
 
       const res = await api.get('/admin/reports/past-timesheets', { params });
@@ -232,8 +235,8 @@ export default function Reports() {
     setShowExportMenu(false);
     try {
       const params: any = { startDate, endDate };
-      if (employeeFilter) params.employeeId = employeeFilter;
-      if (projectFilter) params.projectId = projectFilter;
+      if (employeeFilter.length > 0) params.employeeId = employeeFilter.join(',');
+      if (projectFilter.length > 0) params.projectId = projectFilter.join(',');
       if (maxApprovedHours !== '') params.maxApprovedHours = maxApprovedHours;
       if (mode === 'selected' && selectedIds.size > 0) {
         params.selectedEmployeeIds = Array.from(selectedIds).join(',');
@@ -265,8 +268,8 @@ export default function Reports() {
       const params: any = {};
       if (pastStartDate) params.startDate = pastStartDate;
       if (pastEndDate) params.endDate = pastEndDate;
-      if (pastEmployeeFilter) params.employeeId = pastEmployeeFilter;
-      if (pastProjectFilter) params.projectId = pastProjectFilter;
+      if (pastEmployeeFilter.length > 0) params.employeeId = pastEmployeeFilter.join(',');
+      if (pastProjectFilter.length > 0) params.projectId = pastProjectFilter.join(',');
 
       const res = await api.get('/admin/reports/past-timesheets/export', {
         params,
@@ -308,25 +311,25 @@ export default function Reports() {
 
   // ---- Filter helpers ----
   const hasDateFilter = startDate !== getFirstDayOfMonth() || endDate !== getLastDayOfMonth();
-  const hasAnyFilter = hasDateFilter || !!employeeFilter || !!projectFilter || maxApprovedHours !== '';
+  const hasAnyFilter = hasDateFilter || employeeFilter.length > 0 || projectFilter.length > 0 || maxApprovedHours !== '';
 
   const clearAllFilters = () => {
     setStartDate(getFirstDayOfMonth());
     setEndDate(getLastDayOfMonth());
-    setEmployeeFilter('');
-    setProjectFilter('');
+    setEmployeeFilter([]);
+    setProjectFilter([]);
     setMaxApprovedHours('');
   };
 
   const clearPastFilters = () => {
     setPastStartDate('');
     setPastEndDate('');
-    setPastEmployeeFilter('');
-    setPastProjectFilter('');
+    setPastEmployeeFilter([]);
+    setPastProjectFilter([]);
     setPastStatusFilter('');
   };
 
-  const hasPastFilter = !!pastStartDate || !!pastEndDate || !!pastEmployeeFilter || !!pastProjectFilter || !!pastStatusFilter;
+  const hasPastFilter = !!pastStartDate || !!pastEndDate || pastEmployeeFilter.length > 0 || pastProjectFilter.length > 0 || !!pastStatusFilter;
 
   // ---- Summary cards data ----
   const summaryCards = [
@@ -334,6 +337,7 @@ export default function Reports() {
     { label: 'Approved Hours', value: summary.approvedHours, icon: CheckCircle2, color: 'emerald', gradient: 'from-emerald-500 to-teal-600' },
     { label: 'Billable Hours', value: summary.billableHours, icon: DollarSign, color: 'accent', gradient: 'from-accent-500 to-violet-600' },
     { label: 'Non-Billable Hours', value: summary.nonBillableHours, icon: Receipt, color: 'amber', gradient: 'from-amber-500 to-orange-600' },
+    { label: 'Unapproved Hours', value: summary.unapprovedHours, icon: AlertCircle, color: 'red', gradient: 'from-red-500 to-rose-600' },
   ];
 
   return (
@@ -413,7 +417,7 @@ export default function Reports() {
       {activeTab === 'summary' && (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {summaryCards.map((card, i) => {
               const Icon = card.icon;
               return (
@@ -475,8 +479,9 @@ export default function Reports() {
                 <div className="w-52">
                   <label className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider mb-0.5 block">Employee</label>
                   <SearchableDropdown
-                    value={employeeFilter}
-                    onChange={setEmployeeFilter}
+                    multiple
+                    values={employeeFilter}
+                    onChangeValues={setEmployeeFilter}
                     placeholder="All Employees"
                     fetchFn={fetchEmpOptions}
                     getOptionValue={(item) => item.id}
@@ -488,8 +493,9 @@ export default function Reports() {
                 <div className="w-52">
                   <label className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider mb-0.5 block">Project</label>
                   <SearchableDropdown
-                    value={projectFilter}
-                    onChange={setProjectFilter}
+                    multiple
+                    values={projectFilter}
+                    onChangeValues={setProjectFilter}
                     placeholder="All Projects"
                     fetchFn={fetchProjOptions}
                     getOptionValue={(item) => item.id}
@@ -550,12 +556,15 @@ export default function Reports() {
                       <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">
                         <span className="text-amber-500">Non-Billable Hours</span>
                       </th>
+                      <th className="text-center text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider py-3 px-4">
+                        <span className="text-red-500">Unapproved Hours</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={7} className="py-16 text-center">
+                        <td colSpan={8} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-3">
                             <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
                             <span className="text-sm text-[var(--text-secondary)]">Loading report...</span>
@@ -564,7 +573,7 @@ export default function Reports() {
                       </tr>
                     ) : rows.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-16 text-center">
+                        <td colSpan={8} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2">
                             <FileSpreadsheet className="w-10 h-10 text-[var(--text-tertiary)]" />
                             <span className="text-sm font-medium text-[var(--text-secondary)]">No data found</span>
@@ -609,6 +618,9 @@ export default function Reports() {
                           <td className="py-3 px-4 text-center">
                             <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">{formatHours(row.nonBillableHours)}h</span>
                           </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="text-sm font-semibold text-red-600 dark:text-red-400">{formatHours(row.unapprovedHours)}h</span>
+                          </td>
                         </motion.tr>
                       ))
                     )}
@@ -631,6 +643,9 @@ export default function Reports() {
                         </td>
                         <td className="py-3 px-4 text-center text-sm text-amber-600 dark:text-amber-400">
                           {formatHours(rows.reduce((s, r) => s + r.nonBillableHours, 0))}h
+                        </td>
+                        <td className="py-3 px-4 text-center text-sm text-red-600 dark:text-red-400">
+                          {formatHours(rows.reduce((s, r) => s + r.unapprovedHours, 0))}h
                         </td>
                       </tr>
                     </tfoot>
@@ -693,8 +708,9 @@ export default function Reports() {
                 <div className="w-52">
                   <label className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider mb-0.5 block">Employee</label>
                   <SearchableDropdown
-                    value={pastEmployeeFilter}
-                    onChange={setPastEmployeeFilter}
+                    multiple
+                    values={pastEmployeeFilter}
+                    onChangeValues={setPastEmployeeFilter}
                     placeholder="All Employees"
                     fetchFn={fetchEmpOptions}
                     getOptionValue={(item) => item.id}
@@ -705,8 +721,9 @@ export default function Reports() {
                 <div className="w-52">
                   <label className="text-[10px] text-[var(--text-tertiary)] font-medium uppercase tracking-wider mb-0.5 block">Project</label>
                   <SearchableDropdown
-                    value={pastProjectFilter}
-                    onChange={setPastProjectFilter}
+                    multiple
+                    values={pastProjectFilter}
+                    onChangeValues={setPastProjectFilter}
                     placeholder="All Projects"
                     fetchFn={fetchProjOptions}
                     getOptionValue={(item) => item.id}
